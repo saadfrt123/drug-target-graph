@@ -152,16 +152,41 @@ class DrugTargetGraphApp:
         st.markdown('<div class="connection-form">', unsafe_allow_html=True)
         st.header("🔗 Neo4j Connection")
         
-        # Get connection details
-        col1, col2 = st.columns(2)
+        # Connection type selector
+        connection_type = st.selectbox(
+            "🌐 Choose Database:",
+            ["☁️ Neo4j Aura (Cloud)", "💻 Local Database"]
+        )
         
-        with col1:
-            uri = st.text_input("Neo4j URI", value="bolt://127.0.0.1:7687", help="Usually bolt://127.0.0.1:7687")
-            user = st.text_input("Username", value="neo4j", help="Default username is 'neo4j'")
-        
-        with col2:
-            password = st.text_input("Password", type="password", value="11223344", help="Your Neo4j password")
-            database = st.text_input("Database", value="neo4j", help="Usually 'neo4j'")
+        if connection_type == "☁️ Neo4j Aura (Cloud)":
+            st.info("🌤️ Using Neo4j Aura Cloud Database")
+            
+            # Pre-filled cloud connection details
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                uri = st.text_input("Neo4j Aura URI", value="neo4j+s://c8287756.databases.neo4j.io", help="Your Aura instance URI")
+                user = st.text_input("Username", value="neo4j", help="Default username is 'neo4j'")
+            
+            with col2:
+                password = st.text_input("Password", type="password", value="bsSvDn8Kh-qVZrtwwAH2t3yhLf0pGjDKzCL8Bs5jqkM", help="Your Aura database password")
+                database = st.text_input("Database", value="neo4j", help="Usually 'neo4j'")
+            
+            st.success("✅ Cloud database selected - perfect for demos!")
+            
+        else:
+            st.info("💻 Using Local Neo4j Database")
+            
+            # Local connection details
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                uri = st.text_input("Neo4j URI", value="bolt://127.0.0.1:7687", help="Usually bolt://127.0.0.1:7687")
+                user = st.text_input("Username", value="neo4j", help="Default username is 'neo4j'")
+            
+            with col2:
+                password = st.text_input("Password", type="password", value="11223344", help="Your Neo4j password")
+                database = st.text_input("Database", value="neo4j", help="Usually 'neo4j'")
         
         # Connection buttons
         col1, col2, col3 = st.columns(3)
@@ -202,20 +227,31 @@ class DrugTargetGraphApp:
         
         with col3:
             if st.button("📋 Show Help", type="secondary"):
-                st.info("""
-                **Connection Help:**
-                
-                1. **Make sure Neo4j Desktop is running**
-                2. **Start your database instance** (should show "Started")
-                3. **Check your password** in Neo4j Desktop
-                4. **Try the Test Connection button first**
-                
-                **Common settings:**
-                - URI: bolt://127.0.0.1:7687
-                - Username: neo4j
-                - Password: 11223344 (or your custom password)
-                - Database: neo4j
-                """)
+                if connection_type == "☁️ Neo4j Aura (Cloud)":
+                    st.info("""
+                    **Neo4j Aura Cloud Help:**
+                    
+                    1. **URI**: neo4j+s://c8287756.databases.neo4j.io
+                    2. **Username**: neo4j
+                    3. **Password**: Your Aura password
+                    4. **Database**: neo4j
+                    5. **Perfect for demos and presentations!**
+                    """)
+                else:
+                    st.info("""
+                    **Local Database Help:**
+                    
+                    1. **Make sure Neo4j Desktop is running**
+                    2. **Start your database instance** (should show "Started")
+                    3. **Check your password** in Neo4j Desktop
+                    4. **Try the Test Connection button first**
+                    
+                    **Common settings:**
+                    - URI: bolt://127.0.0.1:7687
+                    - Username: neo4j
+                    - Password: 11223344 (or your custom password)
+                    - Database: neo4j
+                    """)
         
         st.markdown('</div>', unsafe_allow_html=True)
         return False
