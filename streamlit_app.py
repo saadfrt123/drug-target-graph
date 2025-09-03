@@ -4,6 +4,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 from neo4j import GraphDatabase
 import logging
+
+# Try to import chemical visualization libraries
+try:
+    from rdkit import Chem
+    from rdkit.Chem import AllChem, Descriptors
+    import stmol
+    RDKIT_AVAILABLE = True
+except ImportError as e:
+    RDKIT_AVAILABLE = False
+    RDKIT_ERROR = str(e)
 from typing import List, Dict, Any
 import os
 import networkx as nx
@@ -464,26 +474,49 @@ class DrugTargetGraphApp:
             return []
     
     def get_drug_details(self, drug_name: str) -> Dict[str, Any]:
-        """Get detailed information about a specific drug"""
+        """Get comprehensive information about a specific drug including all relationships"""
         if not self.driver:
             return None
             
         try:
             with self.driver.session(database=self.database) as session:
-                # Get drug info
+                # Get comprehensive drug info with all properties
                 drug_info = session.run("""
                     MATCH (d:Drug {name: $drug_name})
-                    RETURN d.name as name, d.moa as moa, d.phase as phase
+                    RETURN d.name as name, d.moa as moa, d.phase as phase,
+                           d.disease_area as disease_area, d.indication as indication,
+                           d.vendor as vendor, d.purity as purity, d.smiles as smiles
                 """, drug_name=drug_name).single()
                 
                 if not drug_info:
                     return None
                     
-                # Get targets
+                # Get targets with detailed information
                 targets = session.run("""
                     MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)
                     RETURN t.name as target
                     ORDER BY t.name
+                """, drug_name=drug_name).data()
+                
+                # Get related indications
+                indications = session.run("""
+                    MATCH (d:Drug {name: $drug_name})-[:TREATS]->(i:Indication)
+                    RETURN i.name as indication
+                    ORDER BY i.name
+                """, drug_name=drug_name).data()
+                
+                # Get disease areas
+                disease_areas = session.run("""
+                    MATCH (d:Drug {name: $drug_name})-[:BELONGS_TO]->(da:DiseaseArea)
+                    RETURN da.name as disease_area
+                    ORDER BY da.name
+                """, drug_name=drug_name).data()
+                
+                # Get vendors
+                vendors = session.run("""
+                    MATCH (d:Drug {name: $drug_name})-[:SUPPLIED_BY]->(v:Vendor)
+                    RETURN v.name as vendor
+                    ORDER BY v.name
                 """, drug_name=drug_name).data()
                 
                 # Get similar drugs
@@ -499,6 +532,9 @@ class DrugTargetGraphApp:
                 return {
                     "drug_info": dict(drug_info),
                     "targets": [t["target"] for t in targets],
+                    "indications": [i["indication"] for i in indications],
+                    "disease_areas": [da["disease_area"] for da in disease_areas],
+                    "vendors": [v["vendor"] for v in vendors],
                     "similar_drugs": similar_drugs
                 }
         except Exception as e:
@@ -923,7 +959,22 @@ def main():
 
 def show_dashboard(app):
     """Show the main dashboard"""
-    st.header("📊 Dashboard Overview")
+    # Welcome message and introduction
+    st.markdown("""
+    ## 👋 Welcome to the Enhanced Drug-Target Graph Database!
+    
+    **What is this?** A powerful interactive tool to explore comprehensive relationships between drugs and their biological targets using Neo4j graph database technology.
+    
+    **🌟 What can you do here?**
+    - 🔍 **Search drugs** and see detailed MOAs, targets, disease areas, vendors, and chemical structures
+    - 🎯 **Find all drugs** targeting specific proteins with complete profiles
+    - 🌐 **Visualize networks** in beautiful 2D and immersive 3D interactive graphs
+    - 💡 **Discover insights** for drug repurposing and advanced analytics
+    - 🏥 **Filter by disease areas** and medical indications
+    - 🧪 **View chemical structures** in SMILES notation
+    """)
+    
+    st.header("📊 Database Overview")
     
     # Get basic statistics
     stats = app.get_graph_statistics()
@@ -1014,12 +1065,41 @@ def show_network_visualization(app):
     """Show network visualization"""
     st.header("🌐 Network Visualization")
     
+    # Add helpful introduction
+    st.markdown("""
+    **What is network visualization?** See how drugs and biological targets connect to each other in beautiful interactive graphs.
+    
+    **What do the colors mean?**
+    - 🔴 **Red nodes** = Drugs (medicines)
+    - 🔵 **Blue nodes** = Biological targets (proteins in your body)
+    - 🟢 **Green nodes** = Related drugs (drugs with similar targets)
+    - **Gray lines** = Connections showing "drug targets this protein"
+    
+    **How to use:** Enter a drug name below to see its network, or generate a global view of all connections.
+    """)
+    
     # Network options
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("🔍 Drug Network Explorer")
-        drug_name = st.text_input("Enter drug name to explore its network:")
+        
+        # Add example buttons for network exploration
+        st.write("**Try these examples:**")
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            if st.button("🩹 Aspirin Network", help="See how aspirin connects to targets"):
+                st.session_state.network_drug_example = "aspirin"
+        with col_b:
+            if st.button("💊 Morphine Network", help="Explore morphine's target network"):
+                st.session_state.network_drug_example = "morphine"
+        with col_c:
+            if st.button("🧬 Insulin Network", help="View insulin's biological connections"):
+                st.session_state.network_drug_example = "insulin"
+        
+        # Get drug name from input or example
+        default_network_value = st.session_state.get('network_drug_example', '')
+        drug_name = st.text_input("Enter drug name to explore its network:", value=default_network_value, help="Enter any drug name to see how it connects to biological targets")
         
         if drug_name:
             network_data = app.get_drug_network(drug_name)
@@ -1096,7 +1176,7 @@ def show_network_visualization(app):
                     height=600
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Show network statistics
                 st.subheader("📊 Network Statistics")
@@ -1194,7 +1274,7 @@ def show_network_visualization(app):
                         height=600
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Show network statistics
                     st.subheader("📊 Global Network Statistics")
@@ -1213,7 +1293,21 @@ def show_3d_network_visualization(app):
     """Show 3D network visualization"""
     st.header("🎨 3D Network Visualization")
     
-    st.info("🌐 Explore drug-target relationships in immersive 3D space!")
+    # Add helpful introduction
+    st.markdown("""
+    **What is 3D network visualization?** Experience drug-target relationships in immersive 3D space!
+    
+    **How to interact with 3D networks:**
+    - 🖱️ **Click and drag** to rotate the view
+    - 🔍 **Mouse wheel** to zoom in and out
+    - 👆 **Right-click and drag** to pan around
+    - 🖱️ **Double-click** to reset the view
+    
+    **What you'll see:**
+    - 🔴 **Red diamonds** = Drugs positioned in outer sphere
+    - 🔵 **Blue circles** = Biological targets in inner sphere
+    - **Gray lines** = Connections between drugs and targets
+    """)
     
     # 3D Network Options
     col1, col2 = st.columns(2)
@@ -1314,7 +1408,7 @@ def show_3d_network_visualization(app):
                         showlegend=True
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # Network statistics
                     st.subheader("📊 3D Network Statistics")
@@ -1395,7 +1489,31 @@ def show_drug_search(app):
     """Show drug search interface"""
     st.header("🔍 Drug Search")
     
-    search_term = st.text_input("Enter drug name or partial name:")
+    # Add helpful introduction
+    st.markdown("""
+    **What can you do here?** Search for any drug to see detailed information about it.
+    
+    **Try these examples:** aspirin, insulin, morphine, ibuprofen, metformin
+    """)
+    
+    # Add example buttons
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("Try: Aspirin", help="Search for Aspirin"):
+            st.session_state.search_example = "aspirin"
+    with col2:
+        if st.button("Try: Insulin", help="Search for Insulin"):
+            st.session_state.search_example = "insulin"
+    with col3:
+        if st.button("Try: Morphine", help="Search for Morphine"):
+            st.session_state.search_example = "morphine"
+    with col4:
+        if st.button("Try: Metformin", help="Search for Metformin"):
+            st.session_state.search_example = "metformin"
+    
+    # Get search term from input or example
+    default_value = st.session_state.get('search_example', '')
+    search_term = st.text_input("Enter drug name or partial name:", value=default_value, help="You can search for full names or just part of a drug name")
     
     if search_term:
         results = app.search_drugs(search_term, 50)
@@ -1405,7 +1523,73 @@ def show_drug_search(app):
             
             # Create a DataFrame for better display
             df = pd.DataFrame(results)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
+            
+            # Simple Visual Preview
+            st.markdown("### 📊 **Found Drugs Summary**")
+            if len(results) <= 3:  # Show simple visual for small result sets
+                st.info("📈 Visual summary of found drugs and their target counts:")
+                
+                # Create a simple bar chart of drugs and their target counts
+                try:
+                    import plotly.graph_objects as go
+                    
+                    drug_names = []
+                    target_counts = []
+                    
+                    # Get target counts for each drug
+                    for drug in results:
+                        drug_name = drug['drug']
+                        drug_details = app.get_drug_details(drug_name)
+                        if drug_details and drug_details['targets']:
+                            drug_names.append(drug_name[:15] + "..." if len(drug_name) > 15 else drug_name)
+                            target_counts.append(len(drug_details['targets']))
+                    
+                    if drug_names and target_counts:
+                        # Create simple bar chart
+                        fig = go.Figure(data=[
+                            go.Bar(
+                                x=drug_names,
+                                y=target_counts,
+                                marker_color='lightblue',
+                                marker_line_color='darkblue',
+                                marker_line_width=2,
+                                text=target_counts,
+                                textposition='auto',
+                                textfont=dict(size=14, color='darkblue')
+                            )
+                        ])
+                        
+                        fig.update_layout(
+                            title=dict(
+                                text="🎯 Number of Targets per Drug",
+                                font=dict(size=16, color='darkblue'),
+                                x=0.5
+                            ),
+                            height=300,
+                            showlegend=False,
+                            plot_bgcolor='white',
+                            paper_bgcolor='white',
+                            margin=dict(l=50, r=50, t=60, b=50),
+                            xaxis=dict(
+                                title="Drugs",
+                                titlefont=dict(size=12, color='gray'),
+                                tickfont=dict(size=10, color='gray')
+                            ),
+                            yaxis=dict(
+                                title="Number of Targets",
+                                titlefont=dict(size=12, color='gray'),
+                                tickfont=dict(size=10, color='gray')
+                            )
+                        )
+                        
+                        st.plotly_chart(fig, width='stretch')
+                        st.caption("📊 Select a drug below to see its detailed network visualization")
+                    
+                except Exception as e:
+                    st.info("📋 Select a drug below for detailed visualization.")
+            else:
+                st.info("📋 Select a drug below for detailed network visualization.")
             
             # Allow user to select a drug for detailed view
             selected_drug = st.selectbox("Select a drug for detailed view:", [r['drug'] for r in results])
@@ -1413,26 +1597,526 @@ def show_drug_search(app):
             if selected_drug:
                 drug_details = app.get_drug_details(selected_drug)
                 if drug_details:
-                    st.subheader(f"📋 Details for {selected_drug}")
+                    st.subheader(f"💊 Comprehensive Details for {selected_drug}")
                     
+                    # Basic Drug Information
+                    st.markdown("### 📊 **Basic Information**")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Name", drug_details['drug_info']['name'])
+                        st.metric("Development Phase", drug_details['drug_info']['phase'] or 'N/A')
+                    with col2:
+                        st.metric("Disease Area", drug_details['drug_info']['disease_area'] or 'N/A')
+                        st.metric("Purity", drug_details['drug_info']['purity'] or 'N/A')
+                    with col3:
+                        st.metric("Vendor", drug_details['drug_info']['vendor'] or 'N/A')
+                        st.metric("Indication", drug_details['drug_info']['indication'] or 'N/A')
+                    
+                    # Mechanism of Action
+                    st.markdown("### 🔬 **Mechanism of Action (MOA)**")
+                    moa = drug_details['drug_info']['moa'] or 'Not specified'
+                    st.info(f"**{moa}**")
+                    
+                    # Chemical Structure
+                    if drug_details['drug_info']['smiles'] and drug_details['drug_info']['smiles'] != 'N/A':
+                        st.markdown("### 🧪 **Chemical Structure**")
+                        
+                        # Show SMILES notation
+                        with st.expander("📝 SMILES Notation"):
+                            st.code(drug_details['drug_info']['smiles'], language='text')
+                            st.caption("SMILES notation - textual representation of the molecular structure")
+                        
+                        # 3D Molecular Visualization
+                        st.markdown("#### 🌐 **Interactive 3D Molecular Structure**")
+                        
+                        try:
+                            # Try to create 3D visualization
+                            smiles = drug_details['drug_info']['smiles']
+                            
+                            # Check if RDKit is available
+                            if RDKIT_AVAILABLE:
+                                try:
+                                    # Debug: Show the SMILES string
+                                    st.info(f"🔍 **Raw SMILES:** `{smiles[:100]}...`" if len(smiles) > 100 else f"🔍 **Raw SMILES:** `{smiles}`")
+                                    
+                                    # Clean and process SMILES string
+                                    # Handle multiple SMILES separated by commas
+                                    smiles_list = [s.strip() for s in smiles.split(',') if s.strip()]
+                                    
+                                    # Try each SMILES until one works
+                                    mol = None
+                                    working_smiles = None
+                                    
+                                    for i, single_smiles in enumerate(smiles_list):
+                                        # Clean the SMILES string
+                                        cleaned_smiles = single_smiles.replace('-3', '3').replace('-2', '2').replace('-1', '1')
+                                        
+                                        try:
+                                            test_mol = Chem.MolFromSmiles(cleaned_smiles)
+                                            if test_mol is not None:
+                                                mol = test_mol
+                                                working_smiles = cleaned_smiles
+                                                st.success(f"✅ **Using SMILES #{i+1}:** `{working_smiles}`")
+                                                break
+                                        except:
+                                            continue
+                                    
+                                    if mol is None:
+                                        st.warning(f"⚠️ Tried {len(smiles_list)} SMILES variants, none could be parsed")
+                                        # Show all the SMILES that were tried
+                                        with st.expander("🔍 See all SMILES variants tried"):
+                                            for i, s in enumerate(smiles_list):
+                                                st.code(f"{i+1}. {s}")
+                                    
+                                    # Continue with the working molecule
+                                    if mol is not None:
+                                        # Add hydrogens and generate 3D coordinates
+                                        mol = Chem.AddHs(mol)
+                                        AllChem.EmbedMolecule(mol, randomSeed=42)
+                                        AllChem.MMFFOptimizeMolecule(mol)
+                                        
+                                        # Create 3D visualization
+                                        st.info("🔬 Rotate, zoom, and explore the 3D molecular structure below:")
+                                        
+                                        # Convert to mol block for 3D display
+                                        mol_block = Chem.MolToMolBlock(mol)
+                                        
+                                        # Display 3D molecule using py3Dmol directly
+                                        try:
+                                            import py3Dmol
+                                            
+                                            # Create enhanced 3D viewer with labels
+                                            view = py3Dmol.view(width=600, height=400)
+                                            view.addModel(mol_block, 'mol')
+                                            
+                                            # Enhanced styling with labels and colors
+                                            view.setStyle({
+                                                'stick': {
+                                                    'colorscheme': 'default',
+                                                    'radius': 0.15
+                                                },
+                                                'sphere': {
+                                                    'scale': 0.3,
+                                                    'colorscheme': 'default'
+                                                }
+                                            })
+                                            
+                                            # Add atom labels
+                                            view.addStyle({
+                                                'stick': {
+                                                    'showNonBondedAsSticks': True,
+                                                    'colorscheme': 'default'
+                                                }
+                                            })
+                                            
+                                            # Add element labels to atoms
+                                            view.addPropertyLabels('elem', '', {
+                                                'fontColor': 'black',
+                                                'fontSize': 12,
+                                                'showBackground': False,
+                                                'alignment': 'center'
+                                            })
+                                            
+                                            view.setBackgroundColor('white')
+                                            view.zoomTo()
+                                            
+                                            # Show in Streamlit
+                                            stmol.showmol(view, height=400, width=600)
+                                            
+                                        except Exception as py3d_error:
+                                            # Fallback: try simpler stmol approach
+                                            try:
+                                                stmol.showmol(mol_block, height=400, width=600)
+                                            except Exception as stmol_error:
+                                                st.error(f"3D visualization failed: {py3d_error}")
+                                                st.info("💡 **Alternative:** Try the demo molecules below or PubChem search")
+                                        
+                                        st.success("✅ 3D structure generated from SMILES data")
+                                        st.caption("🖱️ **Controls:** Click and drag to rotate, scroll to zoom, right-click to pan")
+                                        st.caption("🏷️ **Labels:** Atom symbols shown (C=Carbon, N=Nitrogen, O=Oxygen, etc.)")
+                                        st.caption("🎨 **Colors:** Standard CPK coloring (C=gray, N=blue, O=red, H=white)")
+                                        
+                                        # Show molecular properties
+                                        mol_weight = Descriptors.MolWt(mol)
+                                        num_atoms = mol.GetNumAtoms()
+                                        num_bonds = mol.GetNumBonds()
+                                        
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            st.metric("🧮 Molecular Weight", f"{mol_weight:.2f} g/mol")
+                                        with col2:
+                                            st.metric("⚛️ Number of Atoms", num_atoms)
+                                        with col3:
+                                            st.metric("🔗 Number of Bonds", num_bonds)
+                                        
+                                    else:
+                                        st.warning("⚠️ Could not parse SMILES notation for 3D visualization")
+                                        
+                                        # Offer demo molecules
+                                        st.info("💡 **Try a demo molecule instead:**")
+                                        demo_molecules = {
+                                            "Aspirin": "CC(=O)OC1=CC=CC=C1C(=O)O",
+                                            "Caffeine": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",
+                                            "Morphine": "CN1CC[C@]23c4c5ccc(O)c4O[C@H]2[C@@H](O)C=C[C@H]3[C@H]1C5",
+                                            "Glucose": "C([C@@H]1[C@H]([C@@H]([C@H]([C@H](O1)O)O)O)O)O",
+                                            "Benzene": "c1ccccc1"
+                                        }
+                                        
+                                        col1, col2, col3 = st.columns(3)
+                                        with col1:
+                                            if st.button("🧪 Aspirin", key="demo_aspirin"):
+                                                demo_smiles = demo_molecules["Aspirin"]
+                                                st.session_state[f'demo_smiles_{selected_drug}'] = demo_smiles
+                                        with col2:
+                                            if st.button("☕ Caffeine", key="demo_caffeine"):
+                                                demo_smiles = demo_molecules["Caffeine"]
+                                                st.session_state[f'demo_smiles_{selected_drug}'] = demo_smiles
+                                        with col3:
+                                            if st.button("💊 Morphine", key="demo_morphine"):
+                                                demo_smiles = demo_molecules["Morphine"]
+                                                st.session_state[f'demo_smiles_{selected_drug}'] = demo_smiles
+                                        
+                                        # Check if demo molecule was selected
+                                        if f'demo_smiles_{selected_drug}' in st.session_state:
+                                            demo_smiles = st.session_state[f'demo_smiles_{selected_drug}']
+                                            st.success(f"🧪 **Displaying demo molecule structure**")
+                                            
+                                            try:
+                                                demo_mol = Chem.MolFromSmiles(demo_smiles)
+                                                if demo_mol is not None:
+                                                    demo_mol = Chem.AddHs(demo_mol)
+                                                    AllChem.EmbedMolecule(demo_mol, randomSeed=42)
+                                                    AllChem.MMFFOptimizeMolecule(demo_mol)
+                                                    
+                                                    demo_mol_block = Chem.MolToMolBlock(demo_mol)
+                                                    
+                                                    # Display demo molecule
+                                                    try:
+                                                        import py3Dmol
+                                                        
+                                                        # Create enhanced 3D viewer for demo
+                                                        demo_view = py3Dmol.view(width=600, height=400)
+                                                        demo_view.addModel(demo_mol_block, 'mol')
+                                                        
+                                                        # Enhanced styling with labels for demo
+                                                        demo_view.setStyle({
+                                                            'stick': {
+                                                                'colorscheme': 'default',
+                                                                'radius': 0.15
+                                                            },
+                                                            'sphere': {
+                                                                'scale': 0.3,
+                                                                'colorscheme': 'default'
+                                                            }
+                                                        })
+                                                        
+                                                        # Add element labels to demo molecule
+                                                        demo_view.addPropertyLabels('elem', '', {
+                                                            'fontColor': 'black',
+                                                            'fontSize': 12,
+                                                            'showBackground': False,
+                                                            'alignment': 'center'
+                                                        })
+                                                        
+                                                        demo_view.setBackgroundColor('white')
+                                                        demo_view.zoomTo()
+                                                        
+                                                        # Show in Streamlit
+                                                        stmol.showmol(demo_view, height=400, width=600)
+                                                        
+                                                    except Exception:
+                                                        # Fallback for demo
+                                                        try:
+                                                            stmol.showmol(demo_mol_block, height=400, width=600)
+                                                        except Exception as e:
+                                                            st.error(f"Demo visualization failed: {e}")
+                                                    
+                                                    st.caption("🖱️ **Controls:** Click and drag to rotate, scroll to zoom")
+                                                    st.caption("📝 This is a demo molecule for visualization purposes")
+                                            except Exception as e:
+                                                st.error(f"Demo molecule error: {e}")
+                                        
+                                except Exception as e:
+                                    st.error(f"❌ Error generating 3D structure: {str(e)}")
+                            else:
+                                st.warning(f"📦 3D visualization libraries not available: {RDKIT_ERROR}")
+                                st.info("💡 **To enable 3D structures:** pip install rdkit-pypi stmol")
+                        
+                        except Exception as e:
+                            st.warning(f"Chemical structure visualization not available: {e}")
+                    else:
+                        st.info("🧪 **Chemical structure data not available** in local database")
+                        
+                        # Try to fetch from PubChem as fallback
+                        st.markdown("#### 🌐 **Try PubChem Lookup**")
+                        if st.button("🔍 Search PubChem for 3D Structure", key=f"pubchem_{selected_drug}"):
+                            try:
+                                import requests
+                                import time
+                                
+                                with st.spinner(f"Searching PubChem for {selected_drug}..."):
+                                    # Search PubChem for the drug name
+                                    search_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{selected_drug}/property/IsomericSMILES/JSON"
+                                    
+                                    response = requests.get(search_url, timeout=10)
+                                    
+                                    if response.status_code == 200:
+                                        data = response.json()
+                                        if 'PropertyTable' in data and 'Properties' in data['PropertyTable']:
+                                            smiles = data['PropertyTable']['Properties'][0]['IsomericSMILES']
+                                            
+                                            st.success(f"✅ Found structure for {selected_drug} in PubChem!")
+                                            st.code(smiles, language='text')
+                                            st.caption("SMILES from PubChem database")
+                                            
+                                            # Try to create 3D visualization with PubChem SMILES
+                                            if RDKIT_AVAILABLE:
+                                                try:
+                                                    mol = Chem.MolFromSmiles(smiles)
+                                                    if mol is not None:
+                                                        mol = Chem.AddHs(mol)
+                                                        AllChem.EmbedMolecule(mol, randomSeed=42)
+                                                        AllChem.MMFFOptimizeMolecule(mol)
+                                                        
+                                                        st.info("🔬 3D structure from PubChem data:")
+                                                        mol_block = Chem.MolToMolBlock(mol)
+                                                        
+                                                        # Display PubChem molecule
+                                                        try:
+                                                            import py3Dmol
+                                                            
+                                                            # Create enhanced 3D viewer for PubChem data
+                                                            pubchem_view = py3Dmol.view(width=600, height=400)
+                                                            pubchem_view.addModel(mol_block, 'mol')
+                                                            
+                                                            # Enhanced styling with labels for PubChem
+                                                            pubchem_view.setStyle({
+                                                                'stick': {
+                                                                    'colorscheme': 'default',
+                                                                    'radius': 0.15
+                                                                },
+                                                                'sphere': {
+                                                                    'scale': 0.3,
+                                                                    'colorscheme': 'default'
+                                                                }
+                                                            })
+                                                            
+                                                            # Add element labels to PubChem molecule
+                                                            pubchem_view.addPropertyLabels('elem', '', {
+                                                                'fontColor': 'black',
+                                                                'fontSize': 12,
+                                                                'showBackground': False,
+                                                                'alignment': 'center'
+                                                            })
+                                                            
+                                                            pubchem_view.setBackgroundColor('white')
+                                                            pubchem_view.zoomTo()
+                                                            
+                                                            # Show in Streamlit
+                                                            stmol.showmol(pubchem_view, height=400, width=600)
+                                                            
+                                                        except Exception:
+                                                            # Fallback for PubChem
+                                                            stmol.showmol(mol_block, height=400, width=600)
+                                                        
+                                                        st.caption("🖱️ **Controls:** Click and drag to rotate, scroll to zoom")
+                                                        
+                                                except Exception as e:
+                                                    st.warning(f"Could not generate 3D structure: {e}")
+                                            else:
+                                                st.warning("RDKit not available for 3D visualization")
+                                        else:
+                                            st.warning(f"❌ No structure found for '{selected_drug}' in PubChem")
+                                    else:
+                                        st.warning(f"❌ PubChem search failed (Status: {response.status_code})")
+                                        
+                            except requests.exceptions.Timeout:
+                                st.error("⏱️ PubChem request timed out. Try again later.")
+                            except requests.exceptions.RequestException as e:
+                                st.error(f"🌐 Network error: {e}")
+                            except Exception as e:
+                                st.error(f"❌ Error searching PubChem: {e}")
+                        
+                        st.caption("💡 **Tip:** PubChem is a free chemistry database with millions of compound structures")
+                    
+                    # Biological Targets
+                    st.markdown("### 🎯 **Biological Targets**")
+                    if drug_details['targets']:
+                        st.success(f"This drug targets **{len(drug_details['targets'])} biological proteins/receptors**:")
+                        
+                        # Display targets in a nice grid
+                        targets_per_row = 3
+                        for i in range(0, len(drug_details['targets']), targets_per_row):
+                            cols = st.columns(targets_per_row)
+                            for j, target in enumerate(drug_details['targets'][i:i+targets_per_row]):
+                                with cols[j]:
+                                    st.markdown(f"🎯 **{target}**")
+                    else:
+                        st.warning("No biological targets found in database")
+                    
+                    # Disease Areas and Indications
                     col1, col2 = st.columns(2)
                     with col1:
-                        st.write(f"**Name:** {drug_details['drug_info']['name']}")
-                        st.write(f"**MOA:** {drug_details['drug_info']['moa']}")
-                        st.write(f"**Phase:** {drug_details['drug_info']['phase']}")
+                        st.markdown("### 🏥 **Disease Areas**")
+                        if drug_details['disease_areas']:
+                            for da in drug_details['disease_areas']:
+                                st.markdown(f"🏥 {da}")
+                        else:
+                            st.info("No specific disease areas listed")
                     
                     with col2:
-                        st.write(f"**Targets:** {len(drug_details['targets'])}")
-                        if drug_details['targets']:
-                            st.write(", ".join(drug_details['targets'][:10]))
-                            if len(drug_details['targets']) > 10:
-                                st.write(f"... and {len(drug_details['targets']) - 10} more")
+                        st.markdown("### 💊 **Medical Indications**")
+                        if drug_details['indications']:
+                            for indication in drug_details['indications']:
+                                st.markdown(f"💊 {indication}")
+                        else:
+                            st.info("No specific indications listed")
+                    
+                    # Vendor Information
+                    st.markdown("### 🏪 **Supplier/Vendor Information**")
+                    if drug_details['vendors']:
+                        st.info(f"Available from: **{', '.join(drug_details['vendors'])}**")
+                    else:
+                        st.info("No vendor information available")
+                    
+                    # Simple Visual Network Graph
+                    st.markdown("### 🌐 **Drug-Target Network**")
+                    if drug_details['targets']:
+                        st.info("📊 Simple visual showing this drug and its targets:")
+                        
+                        # Create a simple, clean visualization
+                        import plotly.graph_objects as go
+                        import math
+                        
+                        targets = drug_details['targets']  # Show ALL targets
+                        
+                        if targets:
+                            # Simple circular layout - drug in center, targets around it
+                            drug_x, drug_y = 0, 0
+                            
+                            # Calculate target positions in circles around the drug (multiple rings for many targets)
+                            target_positions = []
+                            num_targets = len(targets)
+                            
+                            # Use multiple rings if there are many targets
+                            if num_targets <= 8:
+                                # Single ring for 8 or fewer targets
+                                radius = 2.5
+                                for i, target in enumerate(targets):
+                                    angle = 2 * math.pi * i / num_targets
+                                    x = radius * math.cos(angle)
+                                    y = radius * math.sin(angle)
+                                    target_positions.append((x, y, target))
+                            else:
+                                # Multiple rings for many targets
+                                targets_per_ring = 8
+                                ring_count = math.ceil(num_targets / targets_per_ring)
+                                
+                                for i, target in enumerate(targets):
+                                    ring_index = i // targets_per_ring
+                                    position_in_ring = i % targets_per_ring
+                                    targets_in_this_ring = min(targets_per_ring, num_targets - ring_index * targets_per_ring)
+                                    
+                                    radius = 2 + ring_index * 1.5  # Increasing radius for outer rings
+                                    angle = 2 * math.pi * position_in_ring / targets_in_this_ring
+                                    x = radius * math.cos(angle)
+                                    y = radius * math.sin(angle)
+                                    target_positions.append((x, y, target))
+                            
+                            # Create the simple plot
+                            fig = go.Figure()
+                            
+                            # Add connection lines (simple straight lines)
+                            for x, y, target in target_positions:
+                                fig.add_trace(go.Scatter(
+                                    x=[drug_x, x], y=[drug_y, y],
+                                    mode='lines',
+                                    line=dict(color='lightgray', width=2),
+                                    showlegend=False,
+                                    hoverinfo='skip'
+                                ))
+                            
+                            # Add target nodes (blue circles)
+                            target_x = [pos[0] for pos in target_positions]
+                            target_y = [pos[1] for pos in target_positions]
+                            target_names = [pos[2] for pos in target_positions]
+                            
+                            fig.add_trace(go.Scatter(
+                                x=target_x, y=target_y,
+                                mode='markers+text',
+                                marker=dict(size=25, color='lightblue', line=dict(color='darkblue', width=2)),
+                                text=target_names,
+                                textposition='bottom center',
+                                textfont=dict(size=12, color='darkblue'),
+                                name='Targets',
+                                showlegend=False,
+                                hovertemplate='<b>Target:</b> %{text}<extra></extra>'
+                            ))
+                            
+                            # Add drug node (red circle in center)
+                            fig.add_trace(go.Scatter(
+                                x=[drug_x], y=[drug_y],
+                                mode='markers+text',
+                                marker=dict(size=35, color='red', line=dict(color='darkred', width=3)),
+                                text=[selected_drug],
+                                textposition='bottom center',
+                                textfont=dict(size=14, color='darkred', family='Arial Black'),
+                                name='Drug',
+                                showlegend=False,
+                                hovertemplate=f'<b>Drug:</b> {selected_drug}<extra></extra>'
+                            ))
+                            
+                            # Simple, clean layout
+                            fig.update_layout(
+                                title=dict(
+                                    text=f"🎯 {selected_drug} → Targets",
+                                    font=dict(size=18, color='darkblue'),
+                                    x=0.5
+                                ),
+                                height=500,
+                                showlegend=False,
+                                plot_bgcolor='white',
+                                paper_bgcolor='white',
+                                margin=dict(l=50, r=50, t=80, b=50),
+                                xaxis=dict(
+                                    showgrid=False, 
+                                    zeroline=False, 
+                                    showticklabels=False,
+                                    range=[-6, 6]  # Larger range to accommodate multiple rings
+                                ),
+                                yaxis=dict(
+                                    showgrid=False, 
+                                    zeroline=False, 
+                                    showticklabels=False,
+                                    range=[-6, 6]  # Larger range to accommodate multiple rings
+                                ),
+                                annotations=[
+                                    dict(
+                                        text="🔴 Drug in center • 🔵 Targets around it • Lines show interactions",
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=0.5, y=-0.05,
+                                        xanchor='center', yanchor='top',
+                                        font=dict(size=12, color='gray')
+                                    )
+                                ]
+                            )
+                            
+                            st.plotly_chart(fig, width='stretch')
+                            
+                            # Simple stats
+                            total_targets = len(drug_details['targets'])
+                            st.success(f"🎯 **All {total_targets} targets displayed** - complete drug-target profile")
+                        else:
+                            st.warning("No targets found for this drug.")
+                    else:
+                        st.info("No targets available to visualize.")
                     
                     # Show similar drugs
                     if drug_details['similar_drugs']:
                         st.subheader("🔗 Similar Drugs")
                         similar_df = pd.DataFrame(drug_details['similar_drugs'])
-                        st.dataframe(similar_df, use_container_width=True)
+                        st.dataframe(similar_df, width='stretch')
         else:
             st.info("No drugs found matching your search term.")
 
@@ -1440,7 +2124,33 @@ def show_target_search(app):
     """Show target search interface"""
     st.header("🎯 Target Search")
     
-    search_term = st.text_input("Enter target name or partial name:")
+    # Add helpful introduction
+    st.markdown("""
+    **What are targets?** Biological targets are proteins, receptors, or enzymes in your body that drugs interact with.
+    
+    **What can you do here?** Search for any biological target to see which drugs affect it.
+    
+    **Try these examples:** DRD2 (dopamine receptor), COX1, HTR2A (serotonin receptor), EGFR
+    """)
+    
+    # Add example buttons for targets
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        if st.button("Try: DRD2", help="Dopamine receptor D2"):
+            st.session_state.target_search_example = "DRD2"
+    with col2:
+        if st.button("Try: COX1", help="Cyclooxygenase-1"):
+            st.session_state.target_search_example = "COX1"
+    with col3:
+        if st.button("Try: HTR2A", help="Serotonin receptor 2A"):
+            st.session_state.target_search_example = "HTR2A"
+    with col4:
+        if st.button("Try: EGFR", help="Epidermal growth factor receptor"):
+            st.session_state.target_search_example = "EGFR"
+    
+    # Get search term from input or example
+    default_target_value = st.session_state.get('target_search_example', '')
+    search_term = st.text_input("Enter target name or partial name:", value=default_target_value, help="Search for protein names, receptor names, or enzyme names")
     
     if search_term:
         results = app.search_targets(search_term, 50)
@@ -1450,7 +2160,7 @@ def show_target_search(app):
             
             # Create a DataFrame for better display
             df = pd.DataFrame(results)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
             
             # Allow user to select a target for detailed view
             selected_target = st.selectbox("Select a target for detailed view:", [r['target'] for r in results])
@@ -1465,14 +2175,14 @@ def show_target_search(app):
                     if target_details['drugs']:
                         # Create a DataFrame for better display
                         drugs_df = pd.DataFrame(target_details['drugs'])
-                        st.dataframe(drugs_df, use_container_width=True)
+                        st.dataframe(drugs_df, width='stretch')
                         
                         # Show phase distribution
                         if 'phase' in drugs_df.columns:
                             phase_counts = drugs_df['phase'].value_counts()
                             fig = px.pie(values=phase_counts.values, names=phase_counts.index, 
                                        title="Drugs by Development Phase")
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
         else:
             st.info("No targets found matching your search term.")
 
@@ -1496,10 +2206,10 @@ def show_statistics(app):
             yaxis_title="Number of Drugs",
             height=500
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(phase_df, use_container_width=True)
+        st.dataframe(phase_df, width='stretch')
     
     # MOA statistics
     st.subheader("⚙️ Drugs by Mechanism of Action")
@@ -1520,10 +2230,10 @@ def show_statistics(app):
             xaxis_title="Number of Drugs",
             height=600
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(moa_df, use_container_width=True)
+        st.dataframe(moa_df, width='stretch')
     
     # Top drugs by target count
     st.subheader("🏆 Top Drugs by Number of Targets")
@@ -1542,10 +2252,10 @@ def show_statistics(app):
             yaxis_title="Number of Targets",
             height=500
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(top_drugs_df, use_container_width=True)
+        st.dataframe(top_drugs_df, width='stretch')
     
     # Top targets by drug count
     st.subheader("🎯 Top Targets by Number of Drugs")
@@ -1564,14 +2274,25 @@ def show_statistics(app):
             yaxis_title="Number of Drugs",
             height=500
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(top_targets_df, use_container_width=True)
+        st.dataframe(top_targets_df, width='stretch')
 
 def show_drug_discovery(app):
     """Show enhanced drug discovery insights with interactive tools"""
     st.header("💡 Enhanced Drug Discovery Insights")
+    
+    # Add introduction to drug discovery tools
+    st.markdown("""
+    **What is drug discovery?** The process of finding new medicines or new uses for existing medicines.
+    
+    **How can this tool help?** Use these advanced features to:
+    - Find all drugs targeting specific proteins
+    - Compare drugs to find similarities
+    - Analyze how drugs work through biological pathways
+    - Discover opportunities to repurpose existing drugs for new diseases
+    """)
     
     # Create tabs for different discovery tools
     tab1, tab2, tab3, tab4 = st.tabs(["🔍 Target-Based Search", "🔗 Drug Comparison", "🔄 Therapeutic Pathways", "📚 Repurposing Insights"])
@@ -1585,14 +2306,14 @@ def show_drug_discovery(app):
             if drugs:
                 st.success(f"Found {len(drugs)} drugs targeting {target_name}")
                 drugs_df = pd.DataFrame(drugs)
-                st.dataframe(drugs_df, use_container_width=True)
+                st.dataframe(drugs_df, width='stretch')
                 
                 # Show phase distribution
                 if 'phase' in drugs_df.columns:
                     phase_counts = drugs_df['phase'].value_counts()
                     fig = px.pie(values=phase_counts.values, names=phase_counts.index, 
                                title=f"Drugs Targeting {target_name} by Phase")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             else:
                 st.info(f"No drugs found targeting {target_name}")
     
@@ -1649,7 +2370,7 @@ def show_drug_discovery(app):
                             height=400
                         )
                         
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                         
                         # Show detailed breakdown
                         col1, col2 = st.columns(2)
@@ -1724,7 +2445,7 @@ def show_drug_discovery(app):
                                    color='target_count',
                                    color_continuous_scale='viridis')
                         fig.update_xaxes(tickangle=45)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
 
 def search_drugs_by_target(app, target_name: str):
     """Helper function to search drugs by target"""
@@ -1788,7 +2509,7 @@ def show_advanced_analytics(app):
                                    color='target_count',
                                    color_continuous_scale='viridis')
                         fig.update_xaxes(tickangle=45)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                 
                 with col2:
                     st.markdown("""
@@ -1805,7 +2526,7 @@ def show_advanced_analytics(app):
                                    color='drug_count',
                                    color_continuous_scale='plasma')
                         fig.update_xaxes(tickangle=45)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
     
     # Drug Similarity Analysis
     st.subheader("🔍 Drug Similarity Analysis")
@@ -1835,12 +2556,12 @@ def show_advanced_analytics(app):
                             yaxis_title="Drug Name",
                             height=600
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                         
                         # Show detailed table
                         st.subheader("📋 Similarity Details")
                         st.dataframe(similar_df[['drug', 'moa', 'phase', 'common_targets', 'similarity_score']], 
-                                   use_container_width=True)
+                                   width='stretch')
     
     # Predictive Insights
     st.subheader("🔮 Predictive Insights")
