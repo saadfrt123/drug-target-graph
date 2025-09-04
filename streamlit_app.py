@@ -17,7 +17,6 @@ except ImportError as e:
 from typing import List, Dict, Any
 import os
 import networkx as nx
-import matplotlib.pyplot as plt
 import numpy as np
 from collections import Counter
 import plotly.graph_objects as go
