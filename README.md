@@ -1,174 +1,229 @@
-# Drug-Target Graph Database
+# 💊 Drug-Target Graph Database Explorer
 
-This project creates a Neo4j graph database from drug-target relationship data, allowing you to explore and analyze drug-target interactions, find similar drugs, and discover potential drug repurposing opportunities.
+An interactive web application for exploring comprehensive drug-target relationships, mechanisms of action, and drug repurposing opportunities using Neo4j graph database technology.
 
-## Features
+## 🌟 Features
 
-- **Graph Database**: Uses Neo4j to model drug-target relationships
-- **Data Import**: Automatically imports drug data from tab-separated text files
-- **Query Interface**: Interactive command-line interface for exploring the graph
-- **Advanced Analytics**: Find similar drugs, common targets, and drug combinations
-- **Statistics**: Comprehensive statistics on drugs, targets, and relationships
+### 🔍 **Drug & Target Search**
+- **Comprehensive drug profiles** with MOA, targets, chemical structures, and clinical phases
+- **Target analysis** showing all drugs targeting specific proteins
+- **Interactive 3D molecular structures** with atom labels and CPK coloring
+- **SMILES notation support** with PubChem integration for missing data
 
-## Prerequisites
+### 🧬 **Mechanism of Action (MOA) Analysis**
+- **Search by mechanism** - Find drugs by how they work (e.g., "kinase inhibitor")
+- **Therapeutic class analysis** - Group drugs by mechanism types
+- **MOA statistics** - Drug counts, target diversity, development insights
+- **Pattern visualization** - Phase distribution and development trends
 
-1. **Neo4j Database**: You need Neo4j installed and running
-   - Download from: https://neo4j.com/download/
-   - Or use Neo4j Desktop: https://neo4j.com/download-center/#desktop
-   - Or use Neo4j AuraDB (cloud): https://neo4j.com/cloud/platform/aura-graph-database/
+### 🔄 **Drug Repurposing Discovery**
+- **Find repurposing candidates** based on shared targets and mechanisms
+- **Similarity analysis** - Drugs with similar MOAs for new applications
+- **Opportunity visualization** - Interactive charts of repurposing potential
+- **Risk assessment** - Leverage known safety profiles
 
-2. **Python 3.7+**: Required for running the scripts
+### 🌐 **Network Visualization**
+- **2D interactive networks** - Clean, readable drug-target relationships
+- **3D immersive visualization** - Explore complex networks in 3D space
+- **Smart layouts** - Golden angle spiral prevents node overlap
+- **Multi-ring displays** - Handle drugs with many targets elegantly
 
-## Installation
+### 📊 **Advanced Analytics**
+- **Phase distribution analysis** - Drug development pipeline insights
+- **Polypharmacology detection** - Multi-target drug identification
+- **Therapeutic pathway analysis** - Biological mechanism exploration
+- **Statistical dashboards** - Comprehensive database insights
 
-1. **Clone or download this project**
+## 🗃️ Database
 
-2. **Install Python dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### **Comprehensive Dataset**
+- **6,798+ drugs** from drug repurposing databases
+- **2,183+ biological targets** (proteins, receptors, enzymes)
+- **1,433+ mechanisms of action** with therapeutic classifications
+- **Complete drug profiles** including vendors, purity, SMILES, indications
 
-3. **Configure Neo4j connection**:
-   - Edit `config.py` to set your Neo4j credentials
-   - Or create a `.env` file with:
-     ```
-     NEO4J_URI=bolt://localhost:7687
-     NEO4J_USER=neo4j
-     NEO4J_PASSWORD=your_password
-     ```
+### **Rich Relationships**
+- **Drug → Target** relationships (TARGETS)
+- **Drug → MOA** connections (HAS_MOA)  
+- **MOA → Therapeutic Class** classifications (BELONGS_TO_CLASS)
+- **Drug similarity** based on mechanisms (SIMILAR_MOA)
+- **Repurposing candidates** with shared targets (REPURPOSING_CANDIDATE)
+- **Disease/indication** associations (TREATS, BELONGS_TO)
 
-4. **Update the data file path**:
-   - Edit `config.py` and update `DRUG_DATA_FILE` to point to your data file
+## 🚀 Getting Started
 
-## Usage
-
-### 1. Build the Graph Database
-
-Run the main script to import your drug data and build the graph:
-
+### **Prerequisites**
 ```bash
-python drug_target_graph.py
+# Required software
+- Python 3.8+
+- Neo4j Database (local or Neo4j Aura cloud)
+- Anaconda/Miniconda (recommended)
 ```
 
-This will:
-- Read your drug data file
-- Create Drug and Target nodes
-- Create TARGETS relationships between drugs and targets
-- Display statistics about the created graph
-
-### 2. Explore the Graph
-
-Use the interactive query interface:
-
+### **Installation**
 ```bash
-python query_interface.py
+# Clone the repository
+git clone https://github.com/your-username/drug-target-graph.git
+cd drug-target-graph
+
+# Create conda environment
+conda create -n drug_graph_env python=3.9
+conda activate drug_graph_env
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-Available options:
-- **Search drugs**: Find drugs by name (partial match)
-- **Search targets**: Find targets by name (partial match)
-- **Get drug details**: View detailed information about a specific drug
-- **Get target details**: View detailed information about a specific target
-- **Find drug combinations**: Discover targets with multiple drugs
-- **Phase statistics**: View drugs by development phase
-- **MOA statistics**: View drugs by mechanism of action
+### **Database Setup**
+```bash
+# Option 1: Local Neo4j
+# 1. Install Neo4j Desktop
+# 2. Create a new database with password "11223344"
+# 3. Run database setup script
+python enhanced_drug_target_graph.py
 
-### 3. Example Queries
-
-The system provides several useful queries:
-
-#### Find drugs targeting a specific target:
-```python
-drugs = graph_builder.find_drugs_by_target("DRD2")
+# Option 2: Neo4j Aura (Cloud) - Recommended for demos
+# 1. Create free account at https://neo4j.com/aura/
+# 2. Update connection details in the app
+# 3. Use the pre-configured cloud database
 ```
 
-#### Find targets for a specific drug:
-```python
-targets = graph_builder.find_targets_by_drug("abacavir")
+### **Run the Application**
+```bash
+# Start the Streamlit app
+streamlit run streamlit_app.py
+
+# Open your browser to http://localhost:8501
 ```
 
-#### Find common targets between two drugs:
-```python
-common_targets = graph_builder.find_common_targets("drug1", "drug2")
+## 💻 Usage
+
+### **Connection Setup**
+1. **Choose database type**: Local Neo4j or Neo4j Aura (Cloud)
+2. **Test connection** before proceeding
+3. **Connect** to access all features
+
+### **Key Workflows**
+
+#### 🔍 **Drug Discovery**
+```
+1. Search Drugs → Enter "Aspirin" → View complete profile
+2. Explore 3D structure → Rotate and examine molecular details  
+3. Analyze targets → See all biological interactions
+4. Find similar drugs → Discover related compounds
 ```
 
-## Data Format
-
-The system expects a tab-separated text file with the following columns:
-- **Name**: Drug name
-- **MOA**: Mechanism of Action
-- **Target**: Comma-separated list of target genes/proteins
-- **Phase**: Drug development phase
-
-Example:
+#### 🧬 **Mechanism Research**
 ```
-Name	MOA	Target	Phase
-abacavir	nucleoside reverse transcriptase inhibitor		Launched
-acetaminophen	cyclooxygenase inhibitor	PTGS1, PTGS2	Launched
+1. MOA Analysis → Search "kinase inhibitor"
+2. View therapeutic classes → Explore drug categories
+3. Analyze patterns → Phase distribution insights
+4. Compare mechanisms → Find development opportunities
 ```
 
-## Graph Schema
+#### 🔄 **Repurposing Research**
+```
+1. Drug Repurposing → Enter target drug name
+2. Find candidates → Shared targets and mechanisms
+3. Assess opportunities → Known safety profiles
+4. Visualize potential → Interactive opportunity charts
+```
 
-The Neo4j graph uses the following schema:
+#### 🌐 **Network Exploration**
+```
+1. Network Visualization → Select drugs/targets
+2. Explore 2D networks → Clean, readable layouts
+3. Immerse in 3D → Comprehensive relationship view
+4. Analyze connectivity → Multi-target insights
+```
 
-### Nodes
-- **Drug**: Represents a drug with properties:
-  - `name`: Drug name
-  - `moa`: Mechanism of action
-  - `phase`: Development phase
+## 🛠️ Technical Stack
 
-- **Target**: Represents a biological target with properties:
-  - `name`: Target name (gene/protein)
+- **Frontend**: Streamlit (Python web framework)
+- **Visualization**: Plotly (interactive charts), py3Dmol (3D molecules)
+- **Database**: Neo4j (graph database)
+- **Chemistry**: RDKit (molecular operations), stmol (3D structures)
+- **Data**: Pandas (manipulation), NumPy (computations)
+- **Network**: NetworkX (graph algorithms)
 
-### Relationships
-- **TARGETS**: Relationship from Drug to Target
-  - Direction: `(Drug)-[:TARGETS]->(Target)`
+## 📁 Project Structure
 
-## Advanced Features
+```
+drug-target-graph/
+├── streamlit_app.py              # Main application
+├── enhanced_drug_target_graph.py # Database setup script
+├── enhanced_moa_relationships.py # MOA enhancement script
+├── transfer_moa_to_cloud.py      # Cloud sync script
+├── requirements.txt              # Python dependencies
+├── config.py                     # Database configuration
+├── Repurposing_Hub_export (1).txt # Source data
+└── README.md                     # This file
+```
 
-### Drug Similarity
-The system can find similar drugs based on shared targets, which is useful for:
-- Drug repurposing opportunities
-- Understanding drug mechanisms
-- Finding alternative treatments
+## 🌐 Deployment
 
-### Target Analysis
-Analyze targets to understand:
-- Which targets are most commonly targeted
-- Which drugs target multiple targets
-- Potential drug combination strategies
+### **Streamlit Cloud (Recommended)**
+```bash
+# 1. Push to GitHub
+git add .
+git commit -m "Deploy drug discovery platform"
+git push origin main
 
-### Development Phase Analysis
-Track drugs across different development phases to understand:
-- Drug development pipeline
-- Success rates by mechanism of action
-- Market availability
+# 2. Deploy on Streamlit Cloud
+# - Connect GitHub repository
+# - Set main file: streamlit_app.py
+# - Deploy automatically
+```
 
-## Troubleshooting
+### **Local Demo**
+- Perfect for development and presentations
+- Full 3D visualization support
+- Fast performance with local database
 
-### Connection Issues
-- Ensure Neo4j is running and accessible
-- Check your connection credentials in `config.py`
-- Verify the Neo4j port (default: 7687)
+## 📊 Demo Scenarios
 
-### Data Import Issues
-- Check that your data file path is correct
-- Ensure the file format matches the expected tab-separated format
-- Verify file encoding (UTF-8 recommended)
+### **For Researchers**
+- **Target validation**: Find all drugs targeting EGFR
+- **MOA analysis**: Compare kinase inhibitors vs receptor agonists
+- **Repurposing**: Discover new applications for approved drugs
 
-### Performance Issues
-- For large datasets, consider using Neo4j's batch import tools
-- Index frequently queried properties
-- Use appropriate Cypher query optimization
+### **For Pharmaceutical Companies**
+- **Pipeline analysis**: Drug development phase distribution
+- **Competitive intelligence**: Mechanism landscape mapping
+- **Partnership opportunities**: Shared target identification
 
-## Contributing
+### **For Educators**
+- **Drug discovery education**: Interactive learning platform
+- **Mechanism visualization**: 3D molecular structures
+- **Network analysis**: Graph-based relationship exploration
 
-Feel free to extend this project with:
-- Additional data sources
-- More sophisticated analytics
-- Web interface
-- Machine learning models for drug discovery
+## 🤝 Contributing
 
-## License
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-This project is open source. Feel free to use and modify as needed.
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **Drug Repurposing Hub** - Source dataset
+- **Neo4j** - Graph database technology
+- **Streamlit** - Web application framework
+- **RDKit** - Cheminformatics toolkit
+- **Plotly** - Interactive visualizations
+
+## 📞 Support
+
+For questions, issues, or contributions:
+- 📧 **Email**: your-email@example.com
+- 🐛 **Issues**: [GitHub Issues](https://github.com/your-username/drug-target-graph/issues)
+- 📖 **Documentation**: [Project Wiki](https://github.com/your-username/drug-target-graph/wiki)
+
+---
+
+**🎯 Accelerate drug discovery through interactive graph exploration!** ⚡

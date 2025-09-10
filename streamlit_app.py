@@ -5,6 +5,28 @@ import plotly.graph_objects as go
 from neo4j import GraphDatabase
 import logging
 
+# Force light theme
+st.set_page_config(
+    page_title="Drug-Target Graph Database",
+    page_icon="💊",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com',
+        'Report a bug': "https://github.com",
+        'About': "# Drug-Target Graph Database\nExplore drug-target interactions!"
+    }
+)
+
+# Load environment variables from .env file (optional)
+try:
+    from dotenv import load_dotenv
+    import os
+    if os.path.exists('.env'):
+        load_dotenv('.env', encoding='utf-8')
+except (ImportError, FileNotFoundError, UnicodeDecodeError, Exception):
+    pass  # dotenv not available, .env file missing/corrupted, or other issues - use fallback
+
 # Try to import chemical visualization libraries
 try:
     from rdkit import Chem
@@ -14,13 +36,21 @@ try:
 except ImportError as e:
     RDKIT_AVAILABLE = False
     RDKIT_ERROR = str(e)
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 import networkx as nx
 import numpy as np
 from collections import Counter
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
+# Import mechanism classifier
+try:
+    from mechanism_classifier import DrugTargetMechanismClassifier
+    CLASSIFIER_AVAILABLE = True
+except ImportError:
+    CLASSIFIER_AVAILABLE = False
+    st.warning("Mechanism classifier not available. Install google-generativeai to enable drug-target mechanism classification.")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,78 +68,380 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main-header {
-        font-size: 3rem;
-        color: #1f77b4;
+        font-size: 2.5rem;
+        color: #2C3E50;
         text-align: center;
         margin-bottom: 2rem;
-        background: linear-gradient(90deg, #1f77b4, #ff7f0e);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        font-weight: 600;
     }
     .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, #E8F6FF 0%, #F0F8FF 100%);
+        color: #2C3E50;
         padding: 1.5rem;
-        border-radius: 1rem;
-        border: none;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        border: 1px solid #E1E8ED;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         margin: 0.5rem 0;
     }
     .drug-card {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
+        background: linear-gradient(135deg, #F0FFF4 0%, #F5FFFA 100%);
+        color: #2C3E50;
         padding: 1rem;
-        border-radius: 0.8rem;
-        border: none;
+        border-radius: 10px;
+        border: 1px solid #D5E8D4;
         margin: 0.5rem 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
     .target-card {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        color: white;
+        background: linear-gradient(135deg, #FFF8E1 0%, #FFFDE7 100%);
+        color: #2C3E50;
         padding: 1rem;
-        border-radius: 0.8rem;
-        border: none;
+        border-radius: 10px;
+        border: 1px solid #F0E68C;
         margin: 0.5rem 0;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
     .connection-form {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #F8F9FA 0%, #FFFFFF 100%);
         padding: 2rem;
-        border-radius: 1rem;
-        color: white;
+        border-radius: 12px;
+        color: #2C3E50;
         margin: 1rem 0;
+        border: 1px solid #E9ECEF;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
     .stButton > button {
-        border-radius: 0.5rem;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        border-radius: 8px;
+        font-weight: 500;
+        border: 1px solid #D1D5DB !important;
+        background: white !important;
+        color: #374151 !important;
+        transition: all 0.2s;
+    }
+    .stButton > button:hover {
+        background: #F9FAFB !important;
+        border-color: #9CA3AF !important;
+        color: #374151 !important;
+    }
+    
+    /* Fix all button styling */
+    button {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    button:hover {
+        background-color: #f0f0f0 !important;
+        color: #1a1a1a !important;
     }
     .network-graph {
-        border: 2px solid #e0e0e0;
-        border-radius: 1rem;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
         padding: 1rem;
-        background: #f8f9fa;
+        background: #FAFAFA;
     }
     .analytics-card {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        color: white;
+        background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%);
+        color: #0F172A;
         padding: 1.5rem;
-        border-radius: 1rem;
-        border: none;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        border: 1px solid #BAE6FD;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         margin: 0.5rem 0;
     }
     .insight-card {
-        background: linear-gradient(135deg, #fc466b 0%, #3f5efb 100%);
-        color: white;
+        background: linear-gradient(135deg, #FEF7FF 0%, #FAF5FF 100%);
+        color: #1F2937;
         padding: 1.5rem;
-        border-radius: 1rem;
-        border: none;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        border: 1px solid #E9D5FF;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
         margin: 0.5rem 0;
+    }
+    /* Overall app background */
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg, .css-1aumxhk {
+        background-color: #F8F9FA;
+    }
+    
+    /* Main content area */
+    .main .block-container {
+        padding-top: 2rem;
+        background-color: #FFFFFF;
+    }
+    
+    /* Force light background for all containers */
+    .css-1kyxreq, .css-12oz5g7, .css-1v3fvcr {
+        background-color: #FFFFFF;
+    }
+    
+    /* Streamlit containers */
+    .css-1avcm0n {
+        background-color: #FFFFFF;
+    }
+    
+    /* Header area */
+    .css-18e3th9 {
+        background-color: #FFFFFF;
+    }
+    
+    /* Force white background for all elements */
+    div[data-testid="stAppViewContainer"] {
+        background-color: #FFFFFF;
+    }
+    
+    /* Sidebar background */
+    section[data-testid="stSidebar"] {
+        background-color: #F8F9FA;
+    }
+    
+    /* Main content background */
+    div[data-testid="stAppViewContainer"] > div:first-child {
+        background-color: #FFFFFF;
+    }
+    
+    /* Ensure all text is dark and readable */
+    .css-1d391kg, .css-1aumxhk, .main, .stMarkdown, .stText, p, div, span, h1, h2, h3, h4, h5, h6 {
+        color: #1a1a1a !important;
+    }
+    
+    /* Force dark text for all Streamlit elements */
+    .stMarkdown, .stMarkdown * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Input labels and text */
+    .stTextInput label, .stSelectbox label, .stButton button {
+        color: #1a1a1a !important;
+    }
+    
+    /* Sidebar text */
+    .css-1d391kg *, section[data-testid="stSidebar"] * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Connection form text */
+    .connection-form * {
+        color: #1a1a1a !important;
+    }
+    
+    /* All text inputs and labels */
+    [data-testid="stTextInput"] *, [data-testid="stSelectbox"] *, [data-testid="stButton"] * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Force text contrast */
+    * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Override any white text */
+    .css-1avcm0n *, .css-18e3th9 *, .css-1kyxreq *, .css-12oz5g7 *, .css-1v3fvcr * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix selectbox styling */
+    .stSelectbox > div > div {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    /* Selectbox options dropdown */
+    .stSelectbox > div > div > div {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Selectbox arrow and text */
+    .stSelectbox [data-baseweb="select"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Dropdown menu */
+    .stSelectbox [role="listbox"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Individual dropdown options */
+    .stSelectbox [role="option"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Dropdown option hover */
+    .stSelectbox [role="option"]:hover {
+        background-color: #f0f0f0 !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* More specific selectbox targeting */
+    div[data-testid="stSelectbox"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    div[data-testid="stSelectbox"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* BaseWeb select component */
+    [data-baseweb="select"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Popover/dropdown container */
+    [data-baseweb="popover"] {
+        background-color: #ffffff !important;
+    }
+    
+    [data-baseweb="popover"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Menu items */
+    [data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    
+    [data-baseweb="menu"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix text input fields */
+    .stTextInput > div > div > input {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    /* Text input container */
+    .stTextInput {
+        background-color: transparent !important;
+    }
+    
+    /* Text input field */
+    input[type="text"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    /* All input elements */
+    input {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    /* Text input data-testid */
+    div[data-testid="stTextInput"] input {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border: 1px solid #cccccc !important;
+    }
+    
+    /* BaseWeb input components */
+    [data-baseweb="input"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    [data-baseweb="input"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix dataframe/table styling */
+    .stDataFrame, .stDataFrame table {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    .stDataFrame th, .stDataFrame td {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+        border-color: #e0e0e0 !important;
+    }
+    
+    /* Fix table headers */
+    .stDataFrame thead th {
+        background-color: #f8f9fa !important;
+        color: #1a1a1a !important;
+        font-weight: bold !important;
+    }
+    
+    /* Fix success/info/warning message styling */
+    .stSuccess, .stInfo, .stWarning, .stError {
+        color: #1a1a1a !important;
+    }
+    
+    .stSuccess > div, .stInfo > div, .stWarning > div, .stError > div {
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix alert text */
+    [data-testid="stAlert"] {
+        color: #1a1a1a !important;
+    }
+    
+    [data-testid="stAlert"] * {
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix all table elements */
+    table, thead, tbody, tr, th, td {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Streamlit specific table fixes */
+    div[data-testid="stDataFrame"] {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    div[data-testid="stDataFrame"] * {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix markdown tables */
+    .streamlit-expanderContent table {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    .streamlit-expanderContent table th,
+    .streamlit-expanderContent table td {
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix all message containers */
+    .element-container {
+        background-color: transparent !important;
+    }
+    
+    /* Force all text elements to be dark */
+    .markdown-text-container {
+        color: #1a1a1a !important;
+    }
+    
+    /* Fix any remaining light text */
+    .css-1e5imcs, .css-1h6y0x9, .css-fg4pbf {
+        color: #1a1a1a !important;
     }
     @media (max-width: 768px) {
         .main-header {
@@ -119,6 +451,106 @@ st.markdown("""
             margin: 0.25rem 0;
             padding: 1rem;
         }
+    }
+    
+    /* Enhanced table visibility for ALL tables including Similar Drugs */
+    .dataframe, .dataframe * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* All Streamlit DataFrames */
+    .stDataFrame .dataframe,
+    .stDataFrame .dataframe * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* Table headers with better contrast */
+    .dataframe thead, .dataframe thead th,
+    .stDataFrame .dataframe thead, .stDataFrame .dataframe thead th {
+        background-color: #f8f9fa !important;
+        color: #495057 !important;
+        font-weight: bold !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* Table body cells */
+    .dataframe tbody tr td,
+    .stDataFrame .dataframe tbody tr td {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #ddd !important;
+        padding: 8px 12px !important;
+    }
+    
+    /* Alternating row colors for better readability */
+    .dataframe tbody tr:nth-child(even),
+    .stDataFrame .dataframe tbody tr:nth-child(even) {
+        background-color: #f8f9fa !important;
+    }
+    
+    /* Force visibility for all table types */
+    [data-testid="stTable"], [data-testid="stTable"] *,
+    .stTable, .stTable *,
+    div[role="table"], div[role="table"] * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* Specific targeting for Similar Drugs and other expandable content tables */
+    .streamlit-expanderContent .dataframe,
+    .streamlit-expanderContent .dataframe * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* Ultra-specific targeting for stubborn table elements */
+    div[data-testid="stDataFrame"] table,
+    div[data-testid="stDataFrame"] table *,
+    div[data-testid="stDataFrame"] tbody,
+    div[data-testid="stDataFrame"] tbody *,
+    div[data-testid="stDataFrame"] tr,
+    div[data-testid="stDataFrame"] tr *,
+    div[data-testid="stDataFrame"] td,
+    div[data-testid="stDataFrame"] th {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #e0e0e0 !important;
+    }
+    
+    /* Force all pandas DataFrame elements to be visible */
+    .dataframe tbody tr,
+    .dataframe tbody tr td,
+    .dataframe tbody tr th {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #e0e0e0 !important;
+        font-size: 14px !important;
+    }
+    
+    /* Target any remaining invisible table cells */
+    div[class*="dataframe"] td,
+    div[class*="dataframe"] th,
+    table[class*="dataframe"] td,
+    table[class*="dataframe"] th {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        padding: 8px !important;
+        border: 1px solid #e0e0e0 !important;
+    }
+    
+    /* Nuclear option - force ALL table-like elements */
+    div[role="grid"],
+    div[role="grid"] *,
+    div[role="gridcell"],
+    div[role="columnheader"],
+    div[role="row"],
+    div[role="row"] * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -131,9 +563,12 @@ class DrugTargetGraphApp:
             st.session_state.driver = None
         if 'database' not in st.session_state:
             st.session_state.database = None
+        if 'classifier' not in st.session_state:
+            st.session_state.classifier = None
         
         self.driver = st.session_state.driver
         self.database = st.session_state.database
+        self.classifier = st.session_state.classifier
         
     def connect_to_neo4j(self):
         """Connect to Neo4j database"""
@@ -183,6 +618,37 @@ class DrugTargetGraphApp:
             
             st.success("✅ Cloud database selected - perfect for demos!")
             
+            # Add helpful info about Aura connections
+            with st.expander("🆘 Connection Issues? Click here for help"):
+                st.warning("""
+                **Common Neo4j Aura Connection Issues:**
+                
+                🔄 **Instance Starting Up:** 
+                - Wait 60-90 seconds after creating your Aura instance
+                - Try the "Test Connection" button first
+                
+                🌐 **DNS Resolution:** 
+                - Your Aura instance might be in a different region
+                - Check https://console.neo4j.io to verify status
+                
+                ⏰ **Timeout Issues:**
+                - Streamlit Cloud has network timeouts
+                - Multiple connection attempts may be needed
+                
+                🔑 **Quick Alternative:** 
+                - Switch to "Local" and use your local Neo4j if available
+                - Your local database already has all the data!
+                """)
+                
+                if st.button("🔄 Try Alternative Connection Strategy"):
+                    st.info("""
+                    **Alternative Connection Approach:**
+                    1. Use your local Neo4j database (switch to Local mode)
+                    2. Your local database has all the enhanced data
+                    3. Perfect for reliable demonstrations
+                    """)
+                    st.success("💡 Local Neo4j is often more reliable for demos!")
+            
         else:
             st.info("💻 Using Local Neo4j Database")
             
@@ -202,37 +668,111 @@ class DrugTargetGraphApp:
         
         with col1:
             if st.button("🧪 Test Connection", type="secondary"):
-                try:
-                    test_driver = GraphDatabase.driver(uri, auth=(user, password))
-                    with test_driver.session(database=database) as session:
-                        session.run("RETURN 1").single()
-                    test_driver.close()
-                    st.success("✅ Connection test successful!")
-                except Exception as e:
-                    st.error(f"❌ Connection test failed: {e}")
+                with st.spinner("Testing connection..."):
+                    try:
+                        # Add timeout and proper configuration for Aura
+                        from neo4j import GraphDatabase, basic_auth
+                        import time
+                        
+                        # Configuration for Aura connections (no encryption settings for neo4j+s://)
+                        config = {
+                            "max_connection_lifetime": 30,
+                            "max_connection_pool_size": 50,
+                            "connection_acquisition_timeout": 60
+                        }
+                        
+                        if "neo4j+s://" in uri:
+                            st.info("🔄 Connecting to Neo4j Aura (this may take 10-15 seconds)...")
+                            time.sleep(2)  # Brief delay for Aura
+                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password), **config)
+                        else:
+                            test_driver = GraphDatabase.driver(uri, auth=(user, password))
+                        
+                        with test_driver.session(database=database) as session:
+                            result = session.run("RETURN 1 as test").single()
+                            st.success(f"✅ Connection test successful! Database is responsive.")
+                        test_driver.close()
+                        
+                    except Exception as e:
+                        error_msg = str(e)
+                        st.error(f"❌ Connection test failed: {error_msg}")
+                        
+                        # Provide specific help based on error type
+                        if "Cannot resolve address" in error_msg:
+                            st.warning("""
+                            🔧 **DNS Resolution Issue:**
+                            - Your Neo4j Aura instance might still be starting up
+                            - Wait 60 seconds after creating the instance
+                            - Check if you can access https://console.neo4j.io
+                            - Verify the URI is correct in your Aura console
+                            """)
+                        elif "authentication" in error_msg.lower():
+                            st.warning("🔑 **Authentication Issue:** Check your username and password")
+                        elif "ServiceUnavailable" in error_msg:
+                            st.warning("🚫 **Service Issue:** The database might be starting up or temporarily unavailable")
         
         with col2:
             if st.button("🔗 Connect", type="primary"):
-                try:
-                    # Create driver and test connection
-                    test_driver = GraphDatabase.driver(uri, auth=(user, password))
-                    with test_driver.session(database=database) as session:
-                        session.run("RETURN 1").single()
-                    
-                    # If successful, store in session state
-                    st.session_state.driver = test_driver
-                    st.session_state.database = database
-                    
-                    # Update instance variables
-                    self.driver = test_driver
-                    self.database = database
-                    
-                    st.success("✅ Connected successfully!")
-                    st.rerun()
-                    return True
-                except Exception as e:
-                    st.error(f"❌ Connection failed: {e}")
-                    return False
+                with st.spinner("Connecting to database..."):
+                    try:
+                        # Create driver and test connection with proper Aura config
+                        from neo4j import GraphDatabase, basic_auth
+                        import time
+                        
+                        # Configuration for Aura connections (no encryption settings for neo4j+s://)
+                        config = {
+                            "max_connection_lifetime": 30,
+                            "max_connection_pool_size": 50,
+                            "connection_acquisition_timeout": 60
+                        }
+                        
+                        if "neo4j+s://" in uri:
+                            st.info("🔄 Establishing secure connection to Neo4j Aura...")
+                            time.sleep(2)  # Brief delay for Aura
+                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password), **config)
+                        else:
+                            test_driver = GraphDatabase.driver(uri, auth=(user, password))
+                        
+                        with test_driver.session(database=database) as session:
+                            session.run("RETURN 1").single()
+                        
+                        # If successful, store in session state
+                        st.session_state.driver = test_driver
+                        st.session_state.database = database
+                        st.session_state.neo4j_uri = uri
+                        st.session_state.neo4j_user = user
+                        st.session_state.neo4j_password = password
+                        st.session_state.neo4j_database = database
+                        
+                        # Update instance variables
+                        self.driver = test_driver
+                        self.database = database
+                        
+                        # Initialize classifier if available
+                        self.initialize_classifier(uri, user, password, database)
+                        
+                        st.success("✅ Connected successfully!")
+                        st.rerun()
+                        return True
+                        
+                    except Exception as e:
+                        error_msg = str(e)
+                        st.error(f"❌ Connection failed: {error_msg}")
+                        
+                        # Provide specific help based on error type
+                        if "Cannot resolve address" in error_msg:
+                            st.warning("""
+                            🔧 **DNS Resolution Issue:**
+                            - Your Neo4j Aura instance might be starting up (wait 60+ seconds)
+                            - Try refreshing the page and connecting again
+                            - Verify the instance is running at https://console.neo4j.io
+                            """)
+                            st.info("💡 **Quick Fix:** Try switching to 'Local' connection temporarily if you have local Neo4j running")
+                        elif "authentication" in error_msg.lower():
+                            st.warning("🔑 **Authentication Issue:** Double-check your Aura password")
+                        elif "ServiceUnavailable" in error_msg:
+                            st.warning("🚫 **Service Issue:** The Aura instance might be paused or starting up")
+                        return False
         
         with col3:
             if st.button("📋 Show Help", type="secondary"):
@@ -287,17 +827,22 @@ class DrugTargetGraphApp:
             return None
     
     def get_network_data(self, limit: int = 50) -> Dict[str, Any]:
-        """Get network data for visualization"""
+        """Get network data for visualization with mechanism information"""
         if not self.driver:
             return None
             
         try:
             with self.driver.session(database=self.database) as session:
-                # Get sample drugs and their targets
+                # Get sample drugs and their targets with mechanism details
                 result = session.run("""
-                    MATCH (d:Drug)-[:TARGETS]->(t:Target)
+                    MATCH (d:Drug)-[r:TARGETS]->(t:Target)
                     RETURN d.name as drug, d.moa as moa, d.phase as phase, 
-                           t.name as target, count(t) as target_count
+                           t.name as target, count(t) as target_count,
+                           r.mechanism as mechanism,
+                           r.relationship_type as relationship_type,
+                           r.target_class as target_class,
+                           r.confidence as confidence,
+                           r.classified as is_classified
                     ORDER BY target_count DESC
                     LIMIT $limit
                 """, limit=limit)
@@ -541,23 +1086,90 @@ class DrugTargetGraphApp:
             return None
     
     def get_target_details(self, target_name: str) -> Dict[str, Any]:
-        """Get detailed information about a specific target"""
+        """Get detailed information about a target including mechanism classifications"""
         if not self.driver:
             return None
             
         try:
             with self.driver.session(database=self.database) as session:
-                # Get drugs targeting this target
-                drugs = session.run("""
-                    MATCH (d:Drug)-[:TARGETS]->(t:Target {name: $target_name})
-                    RETURN d.name as drug, d.moa as moa, d.phase as phase
+                # Get comprehensive target information with mechanism details
+                result = session.run("""
+                    MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)
+                    RETURN 
+                        t.name as target_name,
+                        d.name as drug_name,
+                        d.moa as drug_moa,
+                        d.phase as drug_phase,
+                        r.relationship_type as relationship_type,
+                        r.target_class as target_class,
+                        r.target_subclass as target_subclass,
+                        r.mechanism as mechanism,
+                        r.confidence as confidence,
+                        r.reasoning as reasoning,
+                        r.classified as is_classified
                     ORDER BY d.name
                 """, target_name=target_name).data()
                 
+                if not result:
+                    return {
+                        "target_name": target_name,
+                        "drugs": [],
+                        "target_info": {},
+                        "classification_stats": {"total": 0, "classified": 0}
+                    }
+                
+                # Process the results
+                drugs = []
+                target_classes = set()
+                target_subclasses = set()
+                classified_count = 0
+                
+                for record in result:
+                    drug_info = {
+                        "drug_name": record["drug_name"],
+                        "drug_moa": record["drug_moa"],
+                        "drug_phase": record["drug_phase"],
+                        "relationship_type": record.get("relationship_type"),
+                        "target_class": record.get("target_class"),
+                        "target_subclass": record.get("target_subclass"),
+                        "mechanism": record.get("mechanism"),
+                        "confidence": record.get("confidence"),
+                        "reasoning": record.get("reasoning"),
+                        "is_classified": record.get("is_classified", False)
+                    }
+                    drugs.append(drug_info)
+                    
+                    # Collect target class information
+                    if record.get("target_class"):
+                        target_classes.add(record["target_class"])
+                    if record.get("target_subclass"):
+                        target_subclasses.add(record["target_subclass"])
+                    
+                    if drug_info["is_classified"]:
+                        classified_count += 1
+                
+                # Determine target type (most common classification)
+                target_info = {
+                    "name": target_name,
+                    "target_classes": list(target_classes),
+                    "target_subclasses": list(target_subclasses),
+                    "primary_class": list(target_classes)[0] if target_classes else "Unknown",
+                    "primary_subclass": list(target_subclasses)[0] if target_subclasses else "Unknown"
+                }
+                
+                classification_stats = {
+                    "total": len(drugs),
+                    "classified": classified_count,
+                    "percentage": (classified_count / len(drugs) * 100) if drugs else 0
+                }
+                
                 return {
                     "target_name": target_name,
-                    "drugs": drugs
+                    "drugs": drugs,
+                    "target_info": target_info,
+                    "classification_stats": classification_stats
                 }
+                
         except Exception as e:
             st.error(f"Error getting target details: {e}")
             return None
@@ -581,16 +1193,22 @@ class DrugTargetGraphApp:
             return []
     
     def get_moa_statistics(self) -> List[Dict]:
-        """Get statistics by mechanism of action"""
+        """Get enhanced MOA statistics with new relationship data"""
         if not self.driver:
             return []
             
         try:
             with self.driver.session(database=self.database) as session:
                 result = session.run("""
-                    MATCH (d:Drug)
-                    WHERE d.moa IS NOT NULL AND d.moa <> ''
-                    RETURN d.moa as moa, count(d) as drug_count
+                    MATCH (m:MOA)
+                    OPTIONAL MATCH (m)<-[:HAS_MOA]-(d:Drug)
+                    OPTIONAL MATCH (m)-[:TARGETS_VIA]->(t:Target)
+                    OPTIONAL MATCH (m)-[:BELONGS_TO_CLASS]->(tc:TherapeuticClass)
+                    RETURN m.name as moa, 
+                           count(DISTINCT d) as drug_count,
+                           count(DISTINCT t) as target_count,
+                           collect(DISTINCT tc.name)[0] as therapeutic_class,
+                           m.avg_development_stage as avg_stage
                     ORDER BY drug_count DESC
                     LIMIT 20
                 """)
@@ -598,6 +1216,167 @@ class DrugTargetGraphApp:
         except Exception as e:
             st.error(f"Error getting MOA statistics: {e}")
             return []
+    
+    def search_drugs_by_moa(self, moa_search: str, limit: int = 20) -> List[Dict]:
+        """Search drugs by mechanism of action"""
+        if not self.driver:
+            return []
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (m:MOA)
+                    WHERE toLower(m.name) CONTAINS toLower($moa_search)
+                    MATCH (m)<-[:HAS_MOA]-(d:Drug)
+                    RETURN d.name as drug, d.moa as moa, d.phase as phase,
+                           m.drug_count as moa_drug_count,
+                           m.target_diversity as moa_target_diversity
+                    ORDER BY m.drug_count DESC, d.name
+                    LIMIT $limit
+                """, moa_search=moa_search, limit=limit)
+                return result.data()
+        except Exception as e:
+            st.error(f"Error searching drugs by MOA: {e}")
+            return []
+    
+    def get_similar_drugs_by_moa(self, drug_name: str, limit: int = 10) -> List[Dict]:
+        """Get drugs with similar MOA to the given drug"""
+        if not self.driver:
+            return []
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (d1:Drug {name: $drug_name})-[:SIMILAR_MOA]-(d2:Drug)
+                    MATCH (d1)-[:HAS_MOA]->(m:MOA)
+                    OPTIONAL MATCH (d2)-[:TARGETS]->(t:Target)
+                    RETURN d2.name as drug, d2.moa as moa, d2.phase as phase,
+                           m.name as shared_mechanism,
+                           count(t) as target_count
+                    ORDER BY target_count DESC
+                    LIMIT $limit
+                """, drug_name=drug_name, limit=limit)
+                return result.data()
+        except Exception as e:
+            st.error(f"Error getting similar drugs by MOA: {e}")
+            return []
+    
+    def get_repurposing_candidates(self, drug_name: str = None, limit: int = 15) -> List[Dict]:
+        """Get drug repurposing candidates"""
+        if not self.driver:
+            return []
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                if drug_name:
+                    # Get repurposing candidates for specific drug
+                    result = session.run("""
+                        MATCH (d1:Drug {name: $drug_name})-[r:REPURPOSING_CANDIDATE]->(d2:Drug)
+                        OPTIONAL MATCH (d1)-[:TREATS]->(i1:Indication)
+                        OPTIONAL MATCH (d2)-[:TREATS]->(i2:Indication)
+                        RETURN d1.name as source_drug, d2.name as candidate_drug,
+                               d1.moa as source_moa, d2.moa as candidate_moa,
+                               d1.phase as source_phase, d2.phase as candidate_phase,
+                               r.shared_targets as shared_targets,
+                               collect(DISTINCT i1.name) as source_indications,
+                               collect(DISTINCT i2.name) as candidate_indications
+                        ORDER BY r.shared_targets DESC
+                        LIMIT $limit
+                    """, drug_name=drug_name, limit=limit)
+                else:
+                    # Get top repurposing opportunities overall
+                    result = session.run("""
+                        MATCH (d1:Drug)-[r:REPURPOSING_CANDIDATE]->(d2:Drug)
+                        WHERE d1.phase = 'Approved' OR d2.phase = 'Approved'
+                        RETURN d1.name as source_drug, d2.name as candidate_drug,
+                               d1.moa as source_moa, d2.moa as candidate_moa,
+                               d1.phase as source_phase, d2.phase as candidate_phase,
+                               r.shared_targets as shared_targets
+                        ORDER BY r.shared_targets DESC
+                        LIMIT $limit
+                    """, limit=limit)
+                
+                return result.data()
+        except Exception as e:
+            st.error(f"Error getting repurposing candidates: {e}")
+            return []
+    
+    def get_therapeutic_class_analysis(self, class_name: str = None) -> Dict[str, Any]:
+        """Get therapeutic class analysis"""
+        if not self.driver:
+            return {}
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                if class_name:
+                    # Analyze specific therapeutic class
+                    result = session.run("""
+                        MATCH (tc:TherapeuticClass {name: $class_name})<-[:BELONGS_TO_CLASS]-(m:MOA)<-[:HAS_MOA]-(d:Drug)
+                        OPTIONAL MATCH (d)-[:TARGETS]->(t:Target)
+                        RETURN tc.name as class_name,
+                               count(DISTINCT m) as moa_count,
+                               count(DISTINCT d) as drug_count,
+                               count(DISTINCT t) as target_count,
+                               collect(DISTINCT m.name)[0..10] as sample_moas,
+                               collect(DISTINCT d.name)[0..10] as sample_drugs
+                    """, class_name=class_name)
+                    
+                    data = result.single()
+                    return dict(data) if data else {}
+                else:
+                    # Get all therapeutic classes overview
+                    result = session.run("""
+                        MATCH (tc:TherapeuticClass)<-[:BELONGS_TO_CLASS]-(m:MOA)<-[:HAS_MOA]-(d:Drug)
+                        RETURN tc.name as class_name,
+                               count(DISTINCT m) as moa_count,
+                               count(DISTINCT d) as drug_count
+                        ORDER BY drug_count DESC
+                    """)
+                    
+                    return {"classes": result.data()}
+        except Exception as e:
+            st.error(f"Error getting therapeutic class analysis: {e}")
+            return {}
+    
+    def initialize_classifier(self, neo4j_uri: str, neo4j_user: str, neo4j_password: str, neo4j_database: str):
+        """Initialize the mechanism classifier with current database connection"""
+        if not CLASSIFIER_AVAILABLE:
+            return
+            
+        try:
+            # Get Gemini API key from environment, .env file, or fallback
+            gemini_api_key = os.getenv('GEMINI_API_KEY')
+            
+            # Fallback API key if not found in environment
+            if not gemini_api_key:
+                gemini_api_key = "AIzaSyDg9hpHWOZz4Y3iXiUbezTPE-ROTdJDdYs"  # Your provided API key
+            
+            if gemini_api_key:
+                self.classifier = DrugTargetMechanismClassifier(
+                    gemini_api_key=gemini_api_key,
+                    neo4j_uri=neo4j_uri,
+                    neo4j_user=neo4j_user,
+                    neo4j_password=neo4j_password,
+                    neo4j_database=neo4j_database
+                )
+                st.session_state.classifier = self.classifier
+                logger.info("Mechanism classifier initialized successfully")
+            else:
+                logger.warning("GEMINI_API_KEY not found in environment variables")
+                
+        except Exception as e:
+            logger.error(f"Error initializing classifier: {e}")
+    
+    def get_drug_target_classification(self, drug_name: str, target_name: str, force_reclassify: bool = False) -> Optional[Dict]:
+        """Get or create mechanism classification for a drug-target pair"""
+        if not self.classifier:
+            return None
+            
+        try:
+            return self.classifier.classify_and_store(drug_name, target_name, force_reclassify=force_reclassify)
+        except Exception as e:
+            logger.error(f"Error classifying {drug_name} -> {target_name}: {e}")
+            return None
     
     def get_top_drugs_by_targets(self, limit: int = 10) -> List[Dict]:
         """Get drugs with most targets"""
@@ -925,7 +1704,7 @@ def main():
         
         page = st.sidebar.selectbox(
             "Choose a page:",
-            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
+            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
         )
         
         try:
@@ -935,6 +1714,12 @@ def main():
                 show_drug_search(app)
             elif page == "🎯 Search Targets":
                 show_target_search(app)
+            elif page == "🧬 MOA Analysis":
+                show_moa_analysis(app)
+            elif page == "🔄 Drug Repurposing":
+                show_drug_repurposing(app)
+            elif page == "🔬 Mechanism Classification":
+                show_mechanism_classification(app)
             elif page == "📊 Statistics":
                 show_statistics(app)
             elif page == "🌐 Network Visualization":
@@ -1596,6 +2381,48 @@ def show_drug_search(app):
             if selected_drug:
                 drug_details = app.get_drug_details(selected_drug)
                 if drug_details:
+                    # Auto-classify all drug-target relationships if classifier is available
+                    if app.classifier and drug_details['targets']:
+                        unclassified_targets = []
+                        for target in drug_details['targets']:
+                            existing = app.classifier.get_existing_classification(selected_drug, target)
+                            if not existing or not existing.get('classified', False):
+                                unclassified_targets.append(target)
+                        
+                        if unclassified_targets:
+                            # Classify ALL targets automatically - no limit
+                            targets_to_classify = unclassified_targets
+                            
+                            st.info(f"🔄 **Auto-classifying ALL {len(targets_to_classify)} drug-target relationships...** This will take about {len(targets_to_classify) * 3} seconds.")
+                            
+                            # Progress bar for classification
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            classified_count = 0
+                            for i, target in enumerate(targets_to_classify):
+                                status_text.text(f"🧬 Analyzing {selected_drug} → {target}...")
+                                
+                                try:
+                                    classification = app.get_drug_target_classification(selected_drug, target)
+                                    if classification:
+                                        classified_count += 1
+                                except Exception as e:
+                                    # Log the error but continue with other classifications
+                                    logger.warning(f"Classification failed for {selected_drug} → {target}: {e}")
+                                
+                                progress_bar.progress((i + 1) / len(targets_to_classify))
+                            
+                            progress_bar.empty()
+                            status_text.empty()
+                            
+                            if classified_count > 0:
+                                st.success(f"✅ **Successfully classified {classified_count}/{len(targets_to_classify)} relationships!** Complete mechanism analysis available below.")
+                                if classified_count == len(targets_to_classify):
+                                    st.balloons()  # Celebrate complete classification!
+                            else:
+                                st.warning("⚠️ **Auto-classification encountered issues.** You can manually classify individual relationships below.")
+                    
                     st.subheader(f"💊 Comprehensive Details for {selected_drug}")
                     
                     # Basic Drug Information
@@ -1938,186 +2765,582 @@ def show_drug_search(app):
                         
                         st.caption("💡 **Tip:** PubChem is a free chemistry database with millions of compound structures")
                     
-                    # Biological Targets
-                    st.markdown("### 🎯 **Biological Targets**")
-                    if drug_details['targets']:
+                    # Biological Targets with Mechanism Classification
+                    st.markdown("### 🎯 **Biological Targets & Mechanisms**")
+                    if drug_details.get('targets'):
                         st.success(f"This drug targets **{len(drug_details['targets'])} biological proteins/receptors**:")
                         
-                        # Display targets in a nice grid
-                        targets_per_row = 3
-                        for i in range(0, len(drug_details['targets']), targets_per_row):
-                            cols = st.columns(targets_per_row)
-                            for j, target in enumerate(drug_details['targets'][i:i+targets_per_row]):
-                                with cols[j]:
-                                    st.markdown(f"🎯 **{target}**")
-                    else:
-                        st.warning("No biological targets found in database")
+                        # Check if classifier is available
+                        if app.classifier:
+                            # Count classified vs unclassified targets
+                            classified_count = 0
+                            for target in drug_details['targets']:
+                                existing = app.classifier.get_existing_classification(selected_drug, target)
+                                if existing and existing.get('classified', False):
+                                    classified_count += 1
+                
+                if classified_count == len(drug_details['targets']):
+                    st.success(f"🔬 **All {classified_count} targets have been classified!** Detailed mechanism insights available below.")
+                elif classified_count > 0:
+                    st.info(f"🔬 **{classified_count}/{len(drug_details['targets'])} targets classified** - Remaining targets can be manually classified using buttons below.")
                     
-                    # Disease Areas and Indications
-                    col1, col2 = st.columns(2)
+                    # Option to classify remaining targets
+                    remaining_count = len(drug_details['targets']) - classified_count
+                    if remaining_count > 0 and st.button(f"🚀 Classify All {remaining_count} Remaining Targets", type="secondary"):
+                        with st.spinner(f"Classifying {remaining_count} remaining targets..."):
+                            batch_count = 0
+                            for target in drug_details['targets']:
+                                existing = app.classifier.get_existing_classification(selected_drug, target)
+                                if not existing or not existing.get('classified', False):
+                                    try:
+                                        classification = app.get_drug_target_classification(selected_drug, target)
+                                        if classification:
+                                            batch_count += 1
+                                    except Exception as e:
+                                        logger.warning(f"Batch classification failed for {selected_drug} → {target}: {e}")
+                            
+                            if batch_count > 0:
+                                st.success(f"✅ Successfully classified {batch_count} additional targets!")
+                                st.rerun()  # Refresh to show updated classifications
+                else:
+                    st.info("🔬 **Mechanism classifications available** - Use 'Classify Mechanism' buttons for detailed insights")
+            
+            # Display targets with classification options
+            for target in drug_details['targets']:
+                with st.expander(f"🎯 **{target}** - Click for mechanism details"):
+                    col1, col2 = st.columns([2, 1])
+                    
                     with col1:
-                        st.markdown("### 🏥 **Disease Areas**")
-                        if drug_details['disease_areas']:
-                            for da in drug_details['disease_areas']:
-                                st.markdown(f"🏥 {da}")
-                        else:
-                            st.info("No specific disease areas listed")
+                        st.markdown(f"**Target:** {target}")
+                        
+                        # Check for existing classification
+                        if app.classifier:
+                            existing_classification = app.classifier.get_existing_classification(selected_drug, target)
+                            
+                            if existing_classification:
+                                st.success("✅ **Classification Available:**")
+                                
+                                # Display classification in a nice format
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    st.metric("🔗 Relationship Type", existing_classification['relationship_type'])
+                                    st.metric("🧬 Target Class", existing_classification['target_class'])
+                                with col_b:
+                                    st.metric("⚙️ Mechanism", existing_classification['mechanism'])
+                                    st.metric("🎯 Confidence", f"{existing_classification['confidence']:.1%}")
+                                
+                                with st.expander("📝 Scientific Reasoning"):
+                                    st.write(existing_classification['reasoning'])
+                                    st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
+                            else:
+                                st.info("ℹ️ No classification available yet")
                     
                     with col2:
-                        st.markdown("### 💊 **Medical Indications**")
-                        if drug_details['indications']:
-                            for indication in drug_details['indications']:
-                                st.markdown(f"💊 {indication}")
-                        else:
-                            st.info("No specific indications listed")
-                    
-                    # Vendor Information
-                    st.markdown("### 🏪 **Supplier/Vendor Information**")
-                    if drug_details['vendors']:
-                        st.info(f"Available from: **{', '.join(drug_details['vendors'])}**")
-                    else:
-                        st.info("No vendor information available")
-                    
-                    # Simple Visual Network Graph
-                    st.markdown("### 🌐 **Drug-Target Network**")
-                    if drug_details['targets']:
-                        st.info("📊 Simple visual showing this drug and its targets:")
-                        
-                        # Create a simple, clean visualization
-                        import plotly.graph_objects as go
-                        import math
-                        
-                        targets = drug_details['targets']  # Show ALL targets
-                        
-                        if targets:
-                            # Simple circular layout - drug in center, targets around it
-                            drug_x, drug_y = 0, 0
-                            
-                            # Calculate target positions in circles around the drug (multiple rings for many targets)
-                            target_positions = []
-                            num_targets = len(targets)
-                            
-                            # Use multiple rings if there are many targets
-                            if num_targets <= 8:
-                                # Single ring for 8 or fewer targets
-                                radius = 2.5
-                                for i, target in enumerate(targets):
-                                    angle = 2 * math.pi * i / num_targets
-                                    x = radius * math.cos(angle)
-                                    y = radius * math.sin(angle)
-                                    target_positions.append((x, y, target))
-                            else:
-                                # Multiple rings for many targets
-                                targets_per_ring = 8
-                                ring_count = math.ceil(num_targets / targets_per_ring)
-                                
-                                for i, target in enumerate(targets):
-                                    ring_index = i // targets_per_ring
-                                    position_in_ring = i % targets_per_ring
-                                    targets_in_this_ring = min(targets_per_ring, num_targets - ring_index * targets_per_ring)
+                        if app.classifier:
+                            if st.button(f"🔬 Classify Mechanism", key=f"classify_{selected_drug}_{target}"):
+                                with st.spinner(f"Classifying {selected_drug} → {target}..."):
+                                    classification = app.get_drug_target_classification(selected_drug, target)
                                     
-                                    radius = 2 + ring_index * 1.5  # Increasing radius for outer rings
-                                    angle = 2 * math.pi * position_in_ring / targets_in_this_ring
-                                    x = radius * math.cos(angle)
-                                    y = radius * math.sin(angle)
-                                    target_positions.append((x, y, target))
-                            
-                            # Create the simple plot
-                            fig = go.Figure()
-                            
-                            # Add connection lines (simple straight lines)
-                            for x, y, target in target_positions:
-                                fig.add_trace(go.Scatter(
-                                    x=[drug_x, x], y=[drug_y, y],
-                                    mode='lines',
-                                    line=dict(color='lightgray', width=2),
-                                    showlegend=False,
-                                    hoverinfo='skip'
-                                ))
-                            
-                            # Add target nodes (blue circles)
-                            target_x = [pos[0] for pos in target_positions]
-                            target_y = [pos[1] for pos in target_positions]
-                            target_names = [pos[2] for pos in target_positions]
-                            
-                            fig.add_trace(go.Scatter(
-                                x=target_x, y=target_y,
-                                mode='markers+text',
-                                marker=dict(size=25, color='lightblue', line=dict(color='darkblue', width=2)),
-                                text=target_names,
-                                textposition='bottom center',
-                                textfont=dict(size=12, color='darkblue'),
-                                name='Targets',
-                                showlegend=False,
-                                hovertemplate='<b>Target:</b> %{text}<extra></extra>'
-                            ))
-                            
-                            # Add drug node (red circle in center)
-                            fig.add_trace(go.Scatter(
-                                x=[drug_x], y=[drug_y],
-                                mode='markers+text',
-                                marker=dict(size=35, color='red', line=dict(color='darkred', width=3)),
-                                text=[selected_drug],
-                                textposition='bottom center',
-                                textfont=dict(size=14, color='darkred', family='Arial Black'),
-                                name='Drug',
-                                showlegend=False,
-                                hovertemplate=f'<b>Drug:</b> {selected_drug}<extra></extra>'
-                            ))
-                            
-                            # Simple, clean layout
-                            fig.update_layout(
-                                title=dict(
-                                    text=f"🎯 {selected_drug} → Targets",
-                                    font=dict(size=18, color='darkblue'),
-                                    x=0.5
-                                ),
-                                height=500,
-                                showlegend=False,
-                                plot_bgcolor='white',
-                                paper_bgcolor='white',
-                                margin=dict(l=50, r=50, t=80, b=50),
-                                xaxis=dict(
-                                    showgrid=False, 
-                                    zeroline=False, 
-                                    showticklabels=False,
-                                    range=[-6, 6]  # Larger range to accommodate multiple rings
-                                ),
-                                yaxis=dict(
-                                    showgrid=False, 
-                                    zeroline=False, 
-                                    showticklabels=False,
-                                    range=[-6, 6]  # Larger range to accommodate multiple rings
-                                ),
-                                annotations=[
-                                    dict(
-                                        text="🔴 Drug in center • 🔵 Targets around it • Lines show interactions",
-                                        showarrow=False,
-                                        xref="paper", yref="paper",
-                                        x=0.5, y=-0.05,
-                                        xanchor='center', yanchor='top',
-                                        font=dict(size=12, color='gray')
-                                    )
-                                ]
-                            )
-                            
-                            st.plotly_chart(fig, width='stretch')
-                            
-                            # Simple stats
-                            total_targets = len(drug_details['targets'])
-                            st.success(f"🎯 **All {total_targets} targets displayed** - complete drug-target profile")
+                                    if classification:
+                                        st.success("✅ Classification completed!")
+                                        st.rerun()  # Refresh to show new classification
+                                    else:
+                                        st.error("❌ Classification failed. Check logs for details.")
                         else:
-                            st.warning("No targets found for this drug.")
-                    else:
-                        st.info("No targets available to visualize.")
-                    
-                    # Show similar drugs
-                    if drug_details['similar_drugs']:
-                        st.subheader("🔗 Similar Drugs")
-                        similar_df = pd.DataFrame(drug_details['similar_drugs'])
-                        st.dataframe(similar_df, width='stretch')
+                            st.info("🔧 Set GEMINI_API_KEY to enable classification")
+            
+            # Alternative: Display in grid for simple view
+            st.markdown("#### 📋 **Quick Target List:**")
+            targets_per_row = 3
+            for i in range(0, len(drug_details['targets']), targets_per_row):
+                cols = st.columns(targets_per_row)
+                for j, target in enumerate(drug_details['targets'][i:i+targets_per_row]):
+                    with cols[j]:
+                        # Check if classified
+                        classified = False
+                        if app.classifier:
+                            existing = app.classifier.get_existing_classification(selected_drug, target)
+                            classified = existing is not None
+                        
+                        status_icon = "✅" if classified else "⏳"
+                        st.markdown(f"{status_icon} **{target}**")
         else:
-            st.info("No drugs found matching your search term.")
+            st.warning("No biological targets found in database")
+                    
+        # Only show additional details if drug_details is available
+        if drug_details:
+            # Disease Areas and Indications
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 🏥 **Disease Areas**")
+                if drug_details.get('disease_areas'):
+                    for da in drug_details['disease_areas']:
+                        st.markdown(f"🏥 {da}")
+                else:
+                    st.info("No specific disease areas listed")
+        
+            with col2:
+                st.markdown("### 💊 **Medical Indications**")
+                if drug_details.get('indications'):
+                    for indication in drug_details['indications']:
+                        st.markdown(f"💊 {indication}")
+                else:
+                    st.info("No specific indications listed")
+        
+            # Vendor Information
+            st.markdown("### 🏪 **Supplier/Vendor Information**")
+            if drug_details.get('vendors'):
+                st.info(f"Available from: **{', '.join(drug_details['vendors'])}**")
+            else:
+                st.info("No vendor information available")
+                    
+            # Enhanced Visual Network Graph with Mechanism Labels
+            st.markdown("### 🌐 Drug-Target Network")
+            if drug_details.get('targets'):
+                col_net1, col_net2 = st.columns([3, 1])
+                with col_net1:
+                    st.info("🎯 **How to read:** Green = Primary effects, Orange = Side effects, Gray = Under analysis. Hover over nodes for details.")
+                with col_net2:
+                    if st.button("🔄 Refresh", help="Reload network data"):
+                        st.rerun()
+            
+            # Get comprehensive mechanism information for each target
+            target_mechanisms = {}
+            classification_summary = {
+                'Primary/On-Target': 0,
+                'Secondary/Off-Target': 0, 
+                'Unknown': 0,
+                'Unclassified': 0
+            }
+            
+            if app.classifier:
+                for target in drug_details['targets']:
+                    # Use the same method as target expanders for consistency
+                    classification = app.classifier.get_existing_classification(selected_drug, target)
+                    
+                    if classification:  # If any classification exists, it means it's classified
+                        target_mechanisms[target] = {
+                            'mechanism': classification.get('mechanism', 'Unknown'),
+                            'relationship_type': classification.get('relationship_type', 'Unknown'),
+                            'target_class': classification.get('target_class', 'Unknown'),
+                            'target_subclass': classification.get('target_subclass', 'Unknown'),
+                            'confidence': classification.get('confidence', 0),
+                            'reasoning': classification.get('reasoning', 'No reasoning provided'),
+                            'classified': True  # If we have classification data, it's classified
+                        }
+                        rel_type = classification.get('relationship_type', 'Unknown')
+                        if rel_type in classification_summary:
+                            classification_summary[rel_type] += 1
+                        else:
+                            classification_summary['Unknown'] += 1
+                    else:
+                        target_mechanisms[target] = {
+                            'mechanism': 'Unclassified',
+                            'relationship_type': 'Unclassified',
+                            'target_class': 'Unknown',
+                            'target_subclass': 'Unknown',
+                            'confidence': 0,
+                            'reasoning': 'Target not yet analyzed by AI classifier',
+                            'classified': False
+                        }
+                        classification_summary['Unclassified'] += 1
+            
+            # Show classification summary
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("🟢 Primary Effects", classification_summary['Primary/On-Target'])
+            with col2:
+                st.metric("🟠 Secondary Effects", classification_summary['Secondary/Off-Target'])
+            with col3:
+                st.metric("⚪ Unknown Type", classification_summary['Unknown'])
+            with col4:
+                st.metric("⚫ Unclassified", classification_summary['Unclassified'])
+            
+            # Create enhanced 3D-style network visualization
+            import plotly.graph_objects as go
+            import math
+            import numpy as np
+            
+            targets = drug_details['targets']  # Show ALL targets
+            
+            if targets:
+                # Enhanced layout algorithm based on classification types
+                drug_x, drug_y = 0, 0
+                target_positions = []
+                num_targets = len(targets)
+                
+                # Group targets by classification type for intelligent positioning
+                primary_targets = []
+                secondary_targets = []
+                unknown_targets = []
+                unclassified_targets = []
+                
+                for target in targets:
+                    mech_info = target_mechanisms.get(target, {})
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    
+                    if rel_type == 'Primary/On-Target':
+                        primary_targets.append(target)
+                    elif rel_type == 'Secondary/Off-Target':
+                        secondary_targets.append(target)
+                    elif rel_type == 'Unknown':
+                        unknown_targets.append(target)
+                    else:
+                        unclassified_targets.append(target)
+                
+                # Enhanced vivid circular layout with dramatic visual impact
+                target_positions = []
+                
+                # Group all targets by type for intelligent positioning
+                all_target_groups = [
+                    (primary_targets, 'primary'),
+                    (secondary_targets, 'secondary'), 
+                    (unknown_targets, 'unknown'),
+                    (unclassified_targets, 'unclassified')
+                ]
+                
+                # Calculate dramatic circular layout for maximum visual impact
+                total_targets = len(targets)
+                
+                if total_targets <= 8:
+                    # Single ring layout for few targets
+                    radius = 6
+                    target_index = 0
+                    for target_group, group_type in all_target_groups:
+                        for target in target_group:
+                            angle = 2 * math.pi * target_index / total_targets
+                            x = radius * math.cos(angle)
+                            y = radius * math.sin(angle)
+                            target_positions.append((x, y, target, group_type))
+                            target_index += 1
+                else:
+                    # Multi-ring layout for many targets - more dramatic
+                    inner_radius = 5
+                    outer_radius = 9
+                    targets_per_ring = min(10, total_targets // 2)
+                    
+                    target_index = 0
+                    for target_group, group_type in all_target_groups:
+                        for target in target_group:
+                            if target_index < targets_per_ring:
+                                # Inner ring
+                                angle = 2 * math.pi * target_index / targets_per_ring
+                                x = inner_radius * math.cos(angle)
+                                y = inner_radius * math.sin(angle)
+                            else:
+                                # Outer ring
+                                outer_index = target_index - targets_per_ring
+                                remaining_targets = total_targets - targets_per_ring
+                                angle = 2 * math.pi * outer_index / remaining_targets
+                                x = outer_radius * math.cos(angle)
+                                y = outer_radius * math.sin(angle)
+                            
+                            target_positions.append((x, y, target, group_type))
+                            target_index += 1
+
+                # Create the VIVID, dramatic plot
+                fig = go.Figure()
+                
+                # Add dramatic connection lines with glow effects
+                edge_traces = {}  # Group edges by type for legend
+                
+                for x, y, target, ring_type in target_positions:
+                    # Get comprehensive mechanism info for this target
+                    mech_info = target_mechanisms.get(target, {})
+                    mechanism = mech_info.get('mechanism', 'Unclassified')
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    target_class = mech_info.get('target_class', 'Unknown')
+                    target_subclass = mech_info.get('target_subclass', 'Unknown')
+                    confidence = mech_info.get('confidence', 0)
+                    reasoning = mech_info.get('reasoning', 'No details available')
+                    classified = mech_info.get('classified', False)
+                    
+                    # Clean, professional color scheme
+                    if rel_type == 'Primary/On-Target':
+                        edge_color = '#27AE60'  # Professional green
+                        edge_width = 4
+                        priority = 'Primary Effect'
+                        node_color = '#2ECC71'  # Emerald green
+                        glow_color = 'rgba(46, 204, 113, 0.2)'
+                    elif rel_type == 'Secondary/Off-Target':
+                        edge_color = '#E67E22'  # Professional orange
+                        edge_width = 3
+                        priority = 'Secondary Effect'
+                        node_color = '#F39C12'  # Orange
+                        glow_color = 'rgba(243, 156, 18, 0.2)'
+                    else:  # Unknown or Unclassified
+                        edge_color = '#7F8C8D'  # Professional gray
+                        edge_width = 2
+                        priority = 'Under Analysis'
+                        node_color = '#95A5A6'  # Light gray
+                        glow_color = 'rgba(149, 165, 166, 0.2)'
+                    
+                    # Enhanced hover information with rich formatting
+                    hover_text = f"""
+                    <b style="font-size:16px; color:{edge_color}">{target}</b><br>
+                    <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                    <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
+                    """
+                    
+                    # Add subtle glow effect - much more minimal
+                    fig.add_trace(go.Scatter(
+                        x=[drug_x, x], y=[drug_y, y],
+                        mode='lines',
+                        line=dict(color=glow_color, width=edge_width + 2),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                    
+                    # Main connection line with VIVID colors
+                    fig.add_trace(go.Scatter(
+                        x=[drug_x, x], y=[drug_y, y],
+                        mode='lines',
+                        line=dict(color=edge_color, width=edge_width),
+                        name=priority if priority not in edge_traces else '',
+                        showlegend=priority not in edge_traces,
+                        legendgroup=priority,
+                        hovertemplate=hover_text + '<extra></extra>',
+                        hoverinfo='text'
+                    ))
+                    edge_traces[priority] = True
+                    
+                    # Add clean mechanism labels - only for primary effects to reduce clutter
+                    if mechanism != 'Unclassified' and mechanism != 'Unknown' and rel_type == 'Primary/On-Target':
+                        mid_x = (drug_x + x) / 2
+                        mid_y = (drug_y + y) / 2
+                        
+                        # Simplified mechanism text display
+                        display_mechanism = mechanism
+                        if len(mechanism) > 12:
+                            display_mechanism = mechanism[:10] + "..."
+                        
+                        # Simple background for text readability
+                        fig.add_trace(go.Scatter(
+                            x=[mid_x], y=[mid_y],
+                            mode='markers',
+                            marker=dict(size=40, color='rgba(255,255,255,0.9)', opacity=0.8, 
+                                       line=dict(color=edge_color, width=1)),
+                            showlegend=False,
+                            hoverinfo='skip'
+                        ))
+                        
+                        fig.add_trace(go.Scatter(
+                            x=[mid_x], y=[mid_y],
+                            mode='text',
+                            text=[display_mechanism],
+                            textfont=dict(size=9, color='black', family='Arial'),
+                            textposition='middle center',
+                            showlegend=False,
+                            hovertemplate=f'<b>Mechanism:</b> {mechanism}<br><b>Effect:</b> {priority}<br><b>Confidence:</b> {confidence:.0%}<extra></extra>',
+                            hoverinfo='text'
+                        ))
+
+                # Enhanced VIVID target nodes with dramatic glow effects
+                for x, y, target, ring_type in target_positions:
+                    mech_info = target_mechanisms.get(target, {})
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    mechanism = mech_info.get('mechanism', 'Unclassified')
+                    confidence = mech_info.get('confidence', 0)
+                    
+                    # Clean color scheme matching edges
+                    if rel_type == 'Primary/On-Target':
+                        node_color = '#2ECC71'  # Emerald green
+                        border_color = '#27AE60'  # Professional green
+                        text_color = 'white'
+                        glow_color = 'rgba(46, 204, 113, 0.3)'
+                    elif rel_type == 'Secondary/Off-Target':
+                        node_color = '#F39C12'  # Orange
+                        border_color = '#E67E22'  # Professional orange
+                        text_color = 'white'
+                        glow_color = 'rgba(243, 156, 18, 0.3)'
+                    else:
+                        node_color = '#95A5A6'  # Light gray
+                        border_color = '#7F8C8D'  # Professional gray
+                        text_color = 'white'
+                        glow_color = 'rgba(149, 165, 166, 0.3)'
+                    
+                    # Enhanced hover info with rich styling
+                    target_hover = f"""
+                    <b style="font-size:18px; color:{border_color}">{target}</b><br>
+                    <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
+                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                    <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
+                    """
+                    
+                    # Add subtle glow effect for nodes - single layer
+                    fig.add_trace(go.Scatter(
+                        x=[x], y=[y],
+                        mode='markers',
+                        marker=dict(size=65, color=glow_color, opacity=0.4),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                    
+                    # Main target node with clean styling
+                    fig.add_trace(go.Scatter(
+                        x=[x], y=[y],
+                        mode='markers+text',
+                        marker=dict(size=55, color=node_color, 
+                                   line=dict(color=border_color, width=3),
+                                   opacity=0.9),
+                        text=[target],
+                        textposition='middle center',
+                        textfont=dict(size=11, color=text_color, family='Arial'),
+                        showlegend=False,
+                        hovertemplate=target_hover + '<extra></extra>',
+                        hoverinfo='text'
+                    ))
+
+                # Enhanced CENTRAL drug node with MASSIVE dramatic effect
+                drug_hover = f"""
+                <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
+                <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
+                <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
+                <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>
+                """
+
+                # Drug node subtle glow effect - single layer
+                fig.add_trace(go.Scatter(
+                    x=[drug_x], y=[drug_y],
+                    mode='markers',
+                    marker=dict(size=85, color='rgba(52, 152, 219, 0.3)', opacity=0.5),
+                    showlegend=False,
+                    hoverinfo='skip'
+                ))
+
+                # Main drug node - prominent but not overwhelming
+                fig.add_trace(go.Scatter(
+                    x=[drug_x], y=[drug_y],
+                    mode='markers+text',
+                    marker=dict(size=70, color='#3498DB',  # Professional blue
+                               line=dict(color='#2980B9', width=4),  # Darker blue border
+                               opacity=0.9),
+                    text=[selected_drug.upper()],
+                    textposition='middle center',
+                    textfont=dict(size=14, color='white', family='Arial'),
+                    name='💊 Drug',
+                    showlegend=True,
+                    hovertemplate=drug_hover + '<extra></extra>',
+                    hoverinfo='text'
+                ))
+
+                # Clean, professional layout
+                fig.update_layout(
+                    title=dict(
+                        text=f"Drug-Target Network: {selected_drug}",
+                        font=dict(size=20, color='#2C3E50', family='Arial'),
+                        x=0.5
+                    ),
+                    height=700,  # Reasonable size
+                    showlegend=True,
+                    legend=dict(
+                        x=0.02, y=0.98,
+                        bgcolor='rgba(255,255,255,0.95)',
+                        bordercolor='#BDC3C7',
+                        borderwidth=1,
+                        font=dict(size=12, color='#2C3E50', family='Arial')
+                    ),
+                    plot_bgcolor='#F8F9FA',  # Light gray background
+                    paper_bgcolor='white',  # White paper
+                    margin=dict(l=50, r=50, t=80, b=50),
+                    xaxis=dict(
+                        showgrid=False,
+                        zeroline=False, 
+                        showticklabels=False,
+                        range=[-12, 12],  # Appropriate range
+                        scaleanchor="y",
+                        scaleratio=1
+                    ),
+                    yaxis=dict(
+                        showgrid=False,
+                        zeroline=False, 
+                        showticklabels=False,
+                        range=[-10, 10]  # Appropriate range
+                    )
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Clean summary
+                st.markdown("### 📊 Network Analysis")
+
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("🟢 Primary Effects", classification_summary['Primary/On-Target'])
+                with col2:
+                    st.metric("🟠 Secondary Effects", classification_summary['Secondary/Off-Target'])
+                with col3:
+                    other_count = classification_summary['Unknown'] + classification_summary['Unclassified']
+                    st.metric("🟣 Under Analysis", other_count)
+                with col4:
+                    total = len(drug_details['targets'])
+                    classified = classification_summary['Primary/On-Target'] + classification_summary['Secondary/Off-Target']
+                    progress = (classified / total * 100) if total > 0 else 0
+                    st.metric("📈 Analysis Progress", f"{progress:.0f}%")
+
+                # Enhanced progress visualization with better messaging
+                if progress == 100:
+                    st.success("🎉 **COMPLETE ANALYSIS!** All drug-target relationships have been classified with AI-powered mechanism analysis.")
+                elif progress > 50:
+                    st.info(f"🔄 **Analysis {progress:.0f}% Complete** - {total - classified} targets remaining for comprehensive understanding.")
+                else:
+                    st.warning(f"📊 **Initial Analysis Phase** - {classified} of {total} targets classified. Additional AI analysis will provide deeper insights.")
+            else:
+                st.warning("No targets found for this drug.")
+        else:
+            st.info("No targets available to visualize.")
+        
+        # Show similar drugs
+        if drug_details.get('similar_drugs'):
+            st.subheader("🔗 Similar Drugs")
+            similar_df = pd.DataFrame(drug_details['similar_drugs'])
+            
+            # Debug: Show dataframe info
+            if not similar_df.empty:
+                # Rename columns for better display
+                if 'drug' in similar_df.columns:
+                    similar_df = similar_df.rename(columns={
+                        'drug': 'Drug Name',
+                        'moa': 'Mechanism of Action', 
+                        'phase': 'Development Phase',
+                        'common_targets': 'Shared Targets'
+                    })
+                
+                st.markdown("**Found similar drugs based on shared biological targets:**")
+                
+                # Use st.table() which should work without styling conflicts
+                st.table(similar_df)
+                
+                # Alternative: Display as formatted text table if st.table still has issues
+                st.markdown("---")
+                st.markdown("### 📊 **Similar Drugs Details:**")
+                
+                for idx, row in similar_df.iterrows():
+                    with st.expander(f"💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"**Drug:** {row['Drug Name']}")
+                            st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
+                        with col2:
+                            st.markdown(f"**Phase:** {row['Development Phase']}")
+                            st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
+                        
+                        # Add visual indicator for similarity strength
+                        shared_count = int(row['Shared Targets'])
+                        if shared_count >= 4:
+                            st.success("🔥 **High Similarity** - Many shared targets")
+                        elif shared_count >= 3:
+                            st.info("⭐ **Good Similarity** - Several shared targets")
+                        else:
+                            st.warning("💡 **Moderate Similarity** - Some shared targets")
+                st.caption(f"Found {len(similar_df)} drugs with shared targets")
+            else:
+                st.info("Similar drugs data is empty")
+        else:
+            st.info("No similar drugs found.")
 
 def show_target_search(app):
     """Show target search interface"""
@@ -2167,21 +3390,144 @@ def show_target_search(app):
             if selected_target:
                 target_details = app.get_target_details(selected_target)
                 if target_details:
-                    st.subheader(f"📋 Details for {selected_target}")
-                    st.write(f"**Target:** {target_details['target_name']}")
-                    st.write(f"**Drugs targeting this target:** {len(target_details['drugs'])}")
+                    st.subheader(f"🎯 Comprehensive Profile: {selected_target}")
+                    
+                    # Target Information Section
+                    st.markdown("### 📊 **Target Information**")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("🧬 Target Class", target_details['target_info']['primary_class'])
+                    with col2:
+                        st.metric("🏷️ Target Subclass", target_details['target_info']['primary_subclass'])
+                    with col3:
+                        st.metric("💊 Targeting Drugs", len(target_details['drugs']))
+                    
+                    # Classification Progress
+                    stats = target_details['classification_stats']
+                    if stats['total'] > 0:
+                        col_a, col_b = st.columns(2)
+                        with col_a:
+                            st.metric("✅ Classified Interactions", f"{stats['classified']}/{stats['total']}")
+                        with col_b:
+                            st.metric("📈 Classification Progress", f"{stats['percentage']:.1f}%")
+                        
+                        progress = stats['classified'] / stats['total']
+                        st.progress(progress)
+                    
+                    # Drugs Targeting This Target
+                    st.markdown("### 💊 **Drugs Targeting This Target**")
                     
                     if target_details['drugs']:
-                        # Create a DataFrame for better display
-                        drugs_df = pd.DataFrame(target_details['drugs'])
-                        st.dataframe(drugs_df, width='stretch')
+                        # Enhanced display with mechanism details
+                        for drug in target_details['drugs']:
+                            with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
+                                
+                                col1, col2 = st.columns([2, 1])
+                                
+                                with col1:
+                                    st.markdown(f"**Drug:** {drug['drug_name']}")
+                                    st.markdown(f"**MOA:** {drug['drug_moa'] or 'Not specified'}")
+                                    st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
+                                    
+                                    # Show mechanism classification if available
+                                    if drug['is_classified']:
+                                        st.success("✅ **Mechanism Classification Available:**")
+                                        
+                                        # Display classification details
+                                        mech_col1, mech_col2 = st.columns(2)
+                                        with mech_col1:
+                                            st.metric("🔗 Relationship", drug['relationship_type'] or 'Unknown')
+                                            st.metric("🧬 Target Class", drug['target_class'] or 'Unknown')
+                                        with mech_col2:
+                                            st.metric("⚙️ Mechanism", drug['mechanism'] or 'Unknown')
+                                            confidence = drug['confidence']
+                                            conf_display = f"{confidence:.1%}" if confidence else "N/A"
+                                            st.metric("🎯 Confidence", conf_display)
+                                        
+                                        # Scientific reasoning
+                                        if drug['reasoning']:
+                                            with st.expander("📝 Scientific Reasoning"):
+                                                st.write(drug['reasoning'])
+                                    else:
+                                        st.info("ℹ️ No mechanism classification available yet")
+                                
+                                with col2:
+                                    # Classification action button
+                                    if app.classifier and not drug['is_classified']:
+                                        if st.button(f"🔬 Classify", key=f"classify_target_{drug['drug_name']}_{selected_target}"):
+                                            with st.spinner(f"Classifying {drug['drug_name']} → {selected_target}..."):
+                                                classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
+                                                
+                                                if classification:
+                                                    st.success("✅ Classification completed!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error("❌ Classification failed")
+                                    elif app.classifier and drug['is_classified']:
+                                        st.success("✅ Already classified")
+                                    else:
+                                        st.info("🔧 Set GEMINI_API_KEY to classify")
                         
-                        # Show phase distribution
-                        if 'phase' in drugs_df.columns:
-                            phase_counts = drugs_df['phase'].value_counts()
-                            fig = px.pie(values=phase_counts.values, names=phase_counts.index, 
-                                       title="Drugs by Development Phase")
-                            st.plotly_chart(fig, width='stretch')
+                        # Summary Statistics and Visualizations
+                        st.markdown("### 📈 **Drug Analysis Summary**")
+                        
+                        # Create summary DataFrame
+                        drugs_df = pd.DataFrame(target_details['drugs'])
+                        
+                        # Phase distribution
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if 'drug_phase' in drugs_df.columns:
+                                phase_counts = drugs_df['drug_phase'].value_counts()
+                                fig_phase = px.pie(values=phase_counts.values, names=phase_counts.index, 
+                                                 title=f"Development Phases for {selected_target} Targeting Drugs")
+                                st.plotly_chart(fig_phase, width='stretch')
+                        
+                        with col2:
+                            # Mechanism distribution (if classified)
+                            classified_df = drugs_df[drugs_df['is_classified'] == True]
+                            if not classified_df.empty and 'mechanism' in classified_df.columns:
+                                mech_counts = classified_df['mechanism'].value_counts()
+                                fig_mech = px.bar(x=mech_counts.index, y=mech_counts.values,
+                                                title=f"Mechanisms Targeting {selected_target}",
+                                                labels={'x': 'Mechanism', 'y': 'Number of Drugs'})
+                                fig_mech.update_layout(xaxis_tickangle=45)
+                                st.plotly_chart(fig_mech, width='stretch')
+                            else:
+                                st.info("📊 Mechanism distribution will appear here after classification")
+                        
+                        # Detailed table view
+                        st.markdown("#### 📋 **Detailed Drug Table**")
+                        
+                        # Prepare display DataFrame
+                        display_cols = ['drug_name', 'drug_moa', 'drug_phase', 'mechanism', 'relationship_type', 'confidence']
+                        available_cols = [col for col in display_cols if col in drugs_df.columns]
+                        
+                        if available_cols:
+                            display_df = drugs_df[available_cols].copy()
+                            
+                            # Format confidence as percentage
+                            if 'confidence' in display_df.columns:
+                                display_df['confidence'] = display_df['confidence'].apply(
+                                    lambda x: f"{x:.1%}" if pd.notna(x) else "N/A"
+                                )
+                            
+                            # Rename columns for display
+                            column_names = {
+                                'drug_name': 'Drug Name',
+                                'drug_moa': 'Drug MOA',
+                                'drug_phase': 'Phase',
+                                'mechanism': 'Target Mechanism',
+                                'relationship_type': 'Relationship',
+                                'confidence': 'Confidence'
+                            }
+                            display_df = display_df.rename(columns=column_names)
+                            
+                            st.dataframe(display_df, width='stretch')
+                    else:
+                        st.warning("No drugs found targeting this target.")
         else:
             st.info("No targets found matching your search term.")
 
@@ -2590,6 +3936,413 @@ def show_advanced_analytics(app):
             <p>Drugs targeting different targets can be combined for synergy</p>
         </div>
         """, unsafe_allow_html=True)
+
+def show_moa_analysis(app):
+    """Show MOA (Mechanism of Action) analysis page"""
+    st.header("🧬 Mechanism of Action Analysis")
+    
+    st.markdown("""
+    **Explore drug mechanisms and discover relationships based on how drugs work at the molecular level.**
+    
+    🔬 **What you can do:**
+    - Search drugs by their mechanism of action
+    - Analyze therapeutic classes and patterns
+    - Find drugs with similar mechanisms
+    - Explore MOA statistics and insights
+    """)
+    
+    # MOA Search Section
+    st.subheader("🔍 Search by Mechanism of Action")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        moa_search = st.text_input("Enter mechanism keywords (e.g., 'kinase inhibitor', 'receptor agonist'):")
+    with col2:
+        st.markdown("**Examples:**")
+        if st.button("🧪 Try: kinase inhibitor"):
+            st.session_state.moa_search = "kinase inhibitor"
+        if st.button("🎯 Try: receptor antagonist"):
+            st.session_state.moa_search = "receptor antagonist"
+        if st.button("🔬 Try: enzyme inhibitor"):
+            st.session_state.moa_search = "enzyme inhibitor"
+    
+    # Use session state if available
+    if 'moa_search' in st.session_state:
+        moa_search = st.session_state.moa_search
+    
+    if moa_search:
+        st.success(f"🔍 Searching for drugs with MOA: **{moa_search}**")
+        
+        drugs_by_moa = app.search_drugs_by_moa(moa_search, 25)
+        if drugs_by_moa:
+            st.write(f"Found **{len(drugs_by_moa)} drugs** with similar mechanisms:")
+            
+            # Create DataFrame for better display
+            df = pd.DataFrame(drugs_by_moa)
+            
+            # Format the display
+            if not df.empty:
+                df['MOA'] = df['moa'].fillna('Unknown')
+                df['Phase'] = df['phase'].fillna('Unknown')
+                df['Drug Count in MOA'] = df['moa_drug_count'].fillna(0)
+                df['Target Diversity'] = df['moa_target_diversity'].fillna(0)
+                
+                display_df = df[['drug', 'MOA', 'Phase', 'Drug Count in MOA', 'Target Diversity']].copy()
+                display_df.columns = ['Drug Name', 'Mechanism of Action', 'Development Phase', 'Drugs in MOA', 'Target Diversity']
+                
+                st.dataframe(display_df, width='stretch')
+                
+                # MOA Pattern Analysis
+                if len(df) > 1:
+                    st.subheader("📊 MOA Pattern Analysis")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        # Phase distribution
+                        phase_counts = df['Phase'].value_counts()
+                        fig_phase = px.pie(values=phase_counts.values, names=phase_counts.index, 
+                                         title="Development Phase Distribution")
+                        st.plotly_chart(fig_phase, width='stretch')
+                    
+                    with col2:
+                        # Target diversity analysis
+                        if 'Target Diversity' in df.columns:
+                            avg_diversity = df['Target Diversity'].mean()
+                            max_diversity = df['Target Diversity'].max()
+                            st.metric("Average Target Diversity", f"{avg_diversity:.1f}")
+                            st.metric("Max Target Diversity", f"{int(max_diversity)}")
+        else:
+            st.info("No drugs found with that mechanism. Try broader keywords like 'inhibitor' or 'agonist'.")
+    
+    # Therapeutic Class Analysis
+    st.subheader("🏥 Therapeutic Class Overview")
+    
+    class_analysis = app.get_therapeutic_class_analysis()
+    if class_analysis and 'classes' in class_analysis:
+        classes_df = pd.DataFrame(class_analysis['classes'])
+        if not classes_df.empty:
+            classes_df.columns = ['Therapeutic Class', 'MOA Count', 'Drug Count']
+            st.dataframe(classes_df, width='stretch')
+            
+            # Visualize therapeutic classes
+            fig_classes = px.bar(classes_df, x='Therapeutic Class', y='Drug Count',
+                               title="Drugs per Therapeutic Class",
+                               color='Drug Count',
+                               color_continuous_scale='viridis')
+            fig_classes.update_layout(xaxis_tickangle=45)
+            st.plotly_chart(fig_classes, width='stretch')
+    
+    # Top MOAs
+    st.subheader("🎯 Top Mechanisms of Action")
+    moa_stats = app.get_moa_statistics()
+    if moa_stats:
+        moa_df = pd.DataFrame(moa_stats)
+        if not moa_df.empty:
+            # Clean and format the data
+            moa_df['MOA'] = moa_df['moa'].fillna('Unknown')
+            moa_df['Drug Count'] = moa_df['drug_count'].fillna(0)
+            moa_df['Target Count'] = moa_df['target_count'].fillna(0)
+            moa_df['Therapeutic Class'] = moa_df['therapeutic_class'].fillna('Unclassified')
+            
+            display_cols = ['MOA', 'Drug Count', 'Target Count', 'Therapeutic Class']
+            st.dataframe(moa_df[display_cols], width='stretch')
+
+def show_drug_repurposing(app):
+    """Show drug repurposing opportunities page"""
+    st.header("🔄 Drug Repurposing Discovery")
+    
+    st.markdown("""
+    **Discover opportunities to repurpose existing drugs for new therapeutic applications.**
+    
+    💡 **Drug repurposing advantages:**
+    - Faster development (skip early safety trials)
+    - Lower costs and risks
+    - Known safety profiles
+    - Potential for breakthrough treatments
+    """)
+    
+    # Repurposing Search Options
+    tab1, tab2 = st.tabs(["🎯 Specific Drug", "🌟 Top Opportunities"])
+    
+    with tab1:
+        st.subheader("Find Repurposing Candidates for a Specific Drug")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            drug_name = st.text_input("Enter drug name:")
+        with col2:
+            st.markdown("**Try these:**")
+            if st.button("💊 Aspirin"):
+                st.session_state.repurpose_drug = "Aspirin"
+            if st.button("🧬 Morphine"):
+                st.session_state.repurpose_drug = "Morphine"
+            if st.button("💉 Insulin"):
+                st.session_state.repurpose_drug = "Insulin"
+        
+        # Use session state if available
+        if 'repurpose_drug' in st.session_state:
+            drug_name = st.session_state.repurpose_drug
+        
+        if drug_name:
+            st.success(f"🔍 Finding repurposing opportunities for **{drug_name}**")
+            
+            # Get similar drugs by MOA
+            similar_drugs = app.get_similar_drugs_by_moa(drug_name, 15)
+            if similar_drugs:
+                st.write(f"**{len(similar_drugs)} drugs** with similar mechanism:")
+                
+                similar_df = pd.DataFrame(similar_drugs)
+                if not similar_df.empty:
+                    similar_df.columns = ['Drug', 'MOA', 'Phase', 'Shared Mechanism', 'Target Count']
+                    st.dataframe(similar_df, width='stretch')
+                    
+                    # Visualize similar drugs
+                    fig_similar = px.scatter(similar_df, x='Target Count', y='Phase',
+                                           hover_data=['Drug', 'MOA'],
+                                           title=f"Similar Drugs to {drug_name} by Target Count",
+                                           size='Target Count',
+                                           color='Phase')
+                    st.plotly_chart(fig_similar, width='stretch')
+            
+            # Get specific repurposing candidates
+            repurposing_candidates = app.get_repurposing_candidates(drug_name, 10)
+            if repurposing_candidates:
+                st.subheader("🎯 Direct Repurposing Candidates")
+                
+                for candidate in repurposing_candidates:
+                    with st.expander(f"💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Source Drug:** {candidate['source_drug']}")
+                            st.write(f"**MOA:** {candidate['source_moa']}")
+                            st.write(f"**Phase:** {candidate['source_phase']}")
+                        with col2:
+                            st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
+                            st.write(f"**MOA:** {candidate['candidate_moa']}")
+                            st.write(f"**Phase:** {candidate['candidate_phase']}")
+                        
+                        st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
+    
+    with tab2:
+        st.subheader("🌟 Top Repurposing Opportunities")
+        st.info("Showing high-potential repurposing opportunities with approved drugs")
+        
+        top_opportunities = app.get_repurposing_candidates(limit=20)
+        if top_opportunities:
+            st.write(f"Found **{len(top_opportunities)} repurposing opportunities:**")
+            
+            opp_df = pd.DataFrame(top_opportunities)
+            if not opp_df.empty:
+                # Format for display
+                display_df = opp_df[['source_drug', 'candidate_drug', 'source_moa', 'candidate_moa', 
+                                   'source_phase', 'candidate_phase', 'shared_targets']].copy()
+                display_df.columns = ['Source Drug', 'Candidate Drug', 'Source MOA', 'Candidate MOA',
+                                    'Source Phase', 'Candidate Phase', 'Shared Targets']
+                
+                st.dataframe(display_df, width='stretch')
+                
+                # Visualize opportunities
+                fig_opp = px.bar(opp_df.head(15), x='shared_targets', y='source_drug',
+                               orientation='h',
+                               title="Top Repurposing Opportunities by Shared Targets",
+                               labels={'shared_targets': 'Number of Shared Targets', 'source_drug': 'Source Drug'})
+                st.plotly_chart(fig_opp, width='stretch')
+        else:
+            st.info("No repurposing opportunities found. This feature requires the enhanced MOA relationships.")
+    
+    # Repurposing Insights
+    st.subheader("📈 Repurposing Insights")
+    st.markdown("""
+    **Key Repurposing Strategies:**
+    
+    1. **Target-based repurposing:** Drugs targeting the same proteins
+    2. **MOA-based repurposing:** Drugs with similar mechanisms
+    3. **Pathway-based repurposing:** Drugs affecting related biological pathways
+    4. **Phenotype-based repurposing:** Drugs producing similar therapeutic effects
+    """)
+
+def show_mechanism_classification(app):
+    """Show mechanism classification management page"""
+    st.header("🔬 Drug-Target Mechanism Classification")
+    
+    st.markdown("""
+    **Advanced pharmacological analysis using AI-powered mechanism classification.**
+    
+    🧬 **3-Level Classification System:**
+    - **Level 1:** Relationship Type (Primary/Secondary effects)  
+    - **Level 2:** Target Class (Protein, Nucleic Acid, etc.)
+    - **Level 3:** Detailed Mechanism (Inhibitor, Agonist, etc.)
+    """)
+    
+    # Check classifier availability
+    if not CLASSIFIER_AVAILABLE:
+        st.error("🚫 **Mechanism classifier not available.** Install `google-generativeai` to enable this feature.")
+        return
+    
+    if not app.classifier:
+        # Try to initialize classifier if we have database connection
+        if app.driver and CLASSIFIER_AVAILABLE:
+            st.info("🔄 **Initializing AI classifier...** This may take a moment.")
+            try:
+                # Get current connection details from session state
+                if hasattr(st.session_state, 'neo4j_uri') and hasattr(st.session_state, 'neo4j_user'):
+                    app.initialize_classifier(
+                        st.session_state.neo4j_uri,
+                        st.session_state.neo4j_user, 
+                        st.session_state.neo4j_password,
+                        st.session_state.neo4j_database
+                    )
+                    if app.classifier:
+                        st.success("✅ **AI Classifier ready!** You can now perform mechanism classifications.")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ **Classifier initialization failed.** Please check your API key setup.")
+                else:
+                    st.warning("🔌 **Please connect to Neo4j first** to enable AI classification features.")
+            except Exception as e:
+                st.error(f"❌ **Classifier error:** {e}")
+        else:
+            st.warning("🔧 **AI Classification temporarily unavailable.** The mechanism classifier is being initialized...")
+            st.info("💡 **Tip:** You can still explore existing classifications and use other features while this loads.")
+        return
+    
+    # Classification management interface
+    tab1, tab2, tab3 = st.tabs(["🎯 Single Classification", "📊 Batch Processing", "📈 Classification Stats"])
+    
+    with tab1:
+        st.subheader("🎯 Classify Individual Drug-Target Relationship")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            drug_name = st.text_input("Drug Name:", placeholder="e.g., Aspirin")
+        with col2:
+            target_name = st.text_input("Target Name:", placeholder="e.g., PTGS1")
+        
+        if drug_name and target_name:
+            # Check for existing classification
+            existing = app.classifier.get_existing_classification(drug_name, target_name)
+            
+            if existing:
+                st.success("✅ **Existing Classification Found:**")
+                
+                # Display existing classification
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("🔗 Relationship", existing['relationship_type'])
+                    st.metric("🧬 Target Class", existing['target_class'])
+                with col_b:
+                    st.metric("🏷️ Subclass", existing['target_subclass'])
+                    st.metric("⚙️ Mechanism", existing['mechanism'])
+                with col_c:
+                    st.metric("🎯 Confidence", f"{existing['confidence']:.1%}")
+                    st.metric("📅 Date", existing['timestamp'][:10])
+                
+                with st.expander("📝 Scientific Reasoning"):
+                    st.write(existing['reasoning'])
+                
+                # Reclassify option
+                if st.button("🔄 Reclassify", help="Force a new classification"):
+                    with st.spinner("Reclassifying..."):
+                        new_classification = app.get_drug_target_classification(drug_name, target_name, force_reclassify=True)
+                        if new_classification:
+                            st.success("✅ Reclassification completed!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Reclassification failed")
+            else:
+                st.info("ℹ️ No existing classification found")
+                
+                if st.button("🔬 Classify Relationship", type="primary"):
+                    with st.spinner(f"Classifying {drug_name} → {target_name}..."):
+                        classification = app.get_drug_target_classification(drug_name, target_name)
+                        
+                        if classification:
+                            st.success("✅ Classification completed!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Classification failed. Check that the drug and target exist in the database.")
+    
+    with tab2:
+        st.subheader("📊 Batch Classification")
+        
+        drug_for_batch = st.text_input("Drug name for batch classification:", placeholder="e.g., Morphine")
+        
+        if drug_for_batch:
+            if st.button("🚀 Classify All Targets", type="primary"):
+                with st.spinner(f"Batch classifying targets for {drug_for_batch}..."):
+                    if app.classifier:
+                        results = app.classifier.batch_classify_drug_targets(drug_for_batch, limit=10)
+                        
+                        if results:
+                            st.success(f"✅ Classified {len(results)} drug-target relationships!")
+                            
+                            # Display results in a table
+                            results_df = pd.DataFrame(results)
+                            if not results_df.empty:
+                                display_cols = ['target_name', 'relationship_type', 'target_class', 'mechanism', 'confidence']
+                                results_df = results_df[display_cols]
+                                results_df.columns = ['Target', 'Relationship', 'Class', 'Mechanism', 'Confidence']
+                                results_df['Confidence'] = results_df['Confidence'].apply(lambda x: f"{x:.1%}")
+                                
+                                st.dataframe(results_df, width='stretch')
+                        else:
+                            st.warning("No unclassified targets found or classification failed")
+    
+    with tab3:
+        st.subheader("📈 Classification Statistics")
+        
+        if app.driver:
+            with app.driver.session(database=app.database) as session:
+                # Get classification stats
+                stats = session.run("""
+                    MATCH ()-[r:TARGETS]->()
+                    RETURN 
+                        count(r) as total_relationships,
+                        count(CASE WHEN r.classified = true THEN 1 END) as classified_relationships,
+                        count(CASE WHEN r.classified IS NULL OR r.classified = false THEN 1 END) as unclassified_relationships
+                """).single()
+                
+                if stats:
+                    total = stats['total_relationships']
+                    classified = stats['classified_relationships']
+                    unclassified = stats['unclassified_relationships']
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("📊 Total Relationships", total)
+                    with col2:
+                        st.metric("✅ Classified", classified)
+                    with col3:
+                        st.metric("⏳ Pending", unclassified)
+                    
+                    # Progress bar
+                    progress = classified / total if total > 0 else 0
+                    st.progress(progress)
+                    st.caption(f"Classification Progress: {progress:.1%}")
+                
+                # Classification breakdown
+                mechanism_stats = session.run("""
+                    MATCH ()-[r:TARGETS]->()
+                    WHERE r.classified = true
+                    RETURN r.mechanism as mechanism, count(*) as count
+                    ORDER BY count DESC
+                    LIMIT 10
+                """).data()
+                
+                if mechanism_stats:
+                    st.subheader("🔬 Top Mechanisms")
+                    mech_df = pd.DataFrame(mechanism_stats)
+                    mech_df.columns = ['Mechanism', 'Count']
+                    
+                    fig = px.bar(mech_df, x='Mechanism', y='Count', 
+                               title="Most Common Drug-Target Mechanisms")
+                    fig.update_layout(xaxis_tickangle=45)
+                    st.plotly_chart(fig, width='stretch')
+                else:
+                    st.error("❌ **Drug not found or no data available.** Please check the drug name and try again.")
+        else:
+            st.warning(f"❌ **No drugs found matching '{search_term}'.** This drug may not exist in our database. Please check the spelling or try a different drug name.")
+            st.info("💡 **Suggestions:** Try searching for common drugs like 'aspirin', 'morphine', or 'acetaminophen'.")
 
 if __name__ == "__main__":
     main()
