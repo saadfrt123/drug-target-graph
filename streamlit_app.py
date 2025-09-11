@@ -2301,7 +2301,8 @@ def show_drug_search(app):
             
             # Create a DataFrame for better display
             df = pd.DataFrame(results)
-            st.dataframe(df, width='stretch')
+            # Streamlit 1.28 requires width as int; use full container width instead
+            st.dataframe(df, use_container_width=True)
             
             # Simple Visual Preview
             st.markdown("### 📊 **Found Drugs Summary**")
@@ -3376,7 +3377,7 @@ def show_target_search(app):
             
             # Create a DataFrame for better display
             df = pd.DataFrame(results)
-            st.dataframe(df, width='stretch')
+            st.dataframe(df, use_container_width=True)
             
             # Allow user to select a target for detailed view
             selected_target = st.selectbox("Select a target for detailed view:", [r['target'] for r in results])
@@ -3519,7 +3520,7 @@ def show_target_search(app):
                             }
                             display_df = display_df.rename(columns=column_names)
                             
-                            st.dataframe(display_df, width='stretch')
+                            st.dataframe(display_df, use_container_width=True)
                     else:
                         st.warning("No drugs found targeting this target.")
         else:
@@ -3548,7 +3549,7 @@ def show_statistics(app):
         st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(phase_df, width='stretch')
+        st.dataframe(phase_df, use_container_width=True)
     
     # MOA statistics
     st.subheader("⚙️ Drugs by Mechanism of Action")
@@ -3572,7 +3573,7 @@ def show_statistics(app):
         st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(moa_df, width='stretch')
+        st.dataframe(moa_df, use_container_width=True)
     
     # Top drugs by target count
     st.subheader("🏆 Top Drugs by Number of Targets")
@@ -3594,7 +3595,7 @@ def show_statistics(app):
         st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(top_drugs_df, width='stretch')
+        st.dataframe(top_drugs_df, use_container_width=True)
     
     # Top targets by drug count
     st.subheader("🎯 Top Targets by Number of Drugs")
@@ -3616,7 +3617,7 @@ def show_statistics(app):
         st.plotly_chart(fig, width='stretch')
         
         # Show data table
-        st.dataframe(top_targets_df, width='stretch')
+        st.dataframe(top_targets_df, use_container_width=True)
 
 def show_drug_discovery(app):
     """Show enhanced drug discovery insights with interactive tools"""
@@ -3645,7 +3646,7 @@ def show_drug_discovery(app):
             if drugs:
                 st.success(f"Found {len(drugs)} drugs targeting {target_name}")
                 drugs_df = pd.DataFrame(drugs)
-                st.dataframe(drugs_df, width='stretch')
+                st.dataframe(drugs_df, use_container_width=True)
                 
                 # Show phase distribution
                 if 'phase' in drugs_df.columns:
@@ -3984,7 +3985,7 @@ def show_moa_analysis(app):
                 display_df = df[['drug', 'MOA', 'Phase', 'Drug Count in MOA', 'Target Diversity']].copy()
                 display_df.columns = ['Drug Name', 'Mechanism of Action', 'Development Phase', 'Drugs in MOA', 'Target Diversity']
                 
-                st.dataframe(display_df, width='stretch')
+                st.dataframe(display_df, use_container_width=True)
                 
                 # MOA Pattern Analysis
                 if len(df) > 1:
@@ -4016,7 +4017,7 @@ def show_moa_analysis(app):
         classes_df = pd.DataFrame(class_analysis['classes'])
         if not classes_df.empty:
             classes_df.columns = ['Therapeutic Class', 'MOA Count', 'Drug Count']
-            st.dataframe(classes_df, width='stretch')
+            st.dataframe(classes_df, use_container_width=True)
             
             # Visualize therapeutic classes
             fig_classes = px.bar(classes_df, x='Therapeutic Class', y='Drug Count',
@@ -4039,7 +4040,7 @@ def show_moa_analysis(app):
             moa_df['Therapeutic Class'] = moa_df['therapeutic_class'].fillna('Unclassified')
             
             display_cols = ['MOA', 'Drug Count', 'Target Count', 'Therapeutic Class']
-            st.dataframe(moa_df[display_cols], width='stretch')
+            st.dataframe(moa_df[display_cols], use_container_width=True)
 
 def show_drug_repurposing(app):
     """Show drug repurposing opportunities page"""
@@ -4088,7 +4089,7 @@ def show_drug_repurposing(app):
                 similar_df = pd.DataFrame(similar_drugs)
                 if not similar_df.empty:
                     similar_df.columns = ['Drug', 'MOA', 'Phase', 'Shared Mechanism', 'Target Count']
-                    st.dataframe(similar_df, width='stretch')
+                    st.dataframe(similar_df, use_container_width=True)
                     
                     # Visualize similar drugs
                     fig_similar = px.scatter(similar_df, x='Target Count', y='Phase',
@@ -4133,7 +4134,7 @@ def show_drug_repurposing(app):
                 display_df.columns = ['Source Drug', 'Candidate Drug', 'Source MOA', 'Candidate MOA',
                                     'Source Phase', 'Candidate Phase', 'Shared Targets']
                 
-                st.dataframe(display_df, width='stretch')
+                st.dataframe(display_df, use_container_width=True)
                 
                 # Visualize opportunities
                 fig_opp = px.bar(opp_df.head(15), x='shared_targets', y='source_drug',
@@ -4278,7 +4279,7 @@ def show_mechanism_classification(app):
                                 results_df.columns = ['Target', 'Relationship', 'Class', 'Mechanism', 'Confidence']
                                 results_df['Confidence'] = results_df['Confidence'].apply(lambda x: f"{x:.1%}")
                                 
-                                st.dataframe(results_df, width='stretch')
+                                st.dataframe(results_df, use_container_width=True)
                         else:
                             st.warning("No unclassified targets found or classification failed")
     
