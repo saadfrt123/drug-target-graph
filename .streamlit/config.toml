@@ -7,3 +7,4 @@ textColor = "#000000"
 
 [server]
 headless = true
+fileWatcherType = "none"
