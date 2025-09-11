@@ -614,35 +614,35 @@ class DrugTargetGraphApp:
             
             # Add helpful info about Aura connections
             st.markdown("### 🆘 Connection Issues? Click here for help")
-                st.warning("""
-                **Common Neo4j Aura Connection Issues:**
-                
-                🔄 **Instance Starting Up:** 
-                - Wait 60-90 seconds after creating your Aura instance
-                - Try the "Test Connection" button first
-                
-                🌐 **DNS Resolution:** 
-                - Your Aura instance might be in a different region
-                - Check https://console.neo4j.io to verify status
-                
-                ⏰ **Timeout Issues:**
-                - Streamlit Cloud has network timeouts
-                - Multiple connection attempts may be needed
-                
-                🔑 **Quick Alternative:** 
-                - Switch to "Local" and use your local Neo4j if available
-                - Your local database already has all the data!
-                """)
-                
-                if st.button("🔄 Try Alternative Connection Strategy"):
-                    st.info("""
-                    **Alternative Connection Approach:**
-                    1. Use your local Neo4j database (switch to Local mode)
-                    2. Your local database has all the enhanced data
-                    3. Perfect for reliable demonstrations
-                    """)
-                    st.success("💡 Local Neo4j is often more reliable for demos!")
+            st.warning("""
+            **Common Neo4j Aura Connection Issues:**
             
+            🔄 **Instance Starting Up:** 
+            - Wait 60-90 seconds after creating your Aura instance
+            - Try the "Test Connection" button first
+            
+            🌐 **DNS Resolution:** 
+            - Your Aura instance might be in a different region
+            - Check https://console.neo4j.io to verify status
+            
+            ⏰ **Timeout Issues:**
+            - Streamlit Cloud has network timeouts
+            - Multiple connection attempts may be needed
+            
+            🔑 **Quick Alternative:** 
+            - Switch to "Local" and use your local Neo4j if available
+            - Your local database already has all the data!
+            """)
+            
+            if st.button("🔄 Try Alternative Connection Strategy"):
+                st.info("""
+                **Alternative Connection Approach:**
+                1. Use your local Neo4j database (switch to Local mode)
+                2. Your local database has all the enhanced data
+                3. Perfect for reliable demonstrations
+                """)
+                st.success("💡 Local Neo4j is often more reliable for demos!")
+        
         else:
             st.info("💻 Using Local Neo4j Database")
             
