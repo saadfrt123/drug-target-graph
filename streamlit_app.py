@@ -2804,8 +2804,7 @@ def show_drug_search(app):
             for target in drug_details['targets']:
                 st.markdown(f"### 🎯 **{target}** – Mechanism details")
                 col1, col2 = st.columns([2, 1])
-                    
-                    with col1:
+                with col1:
                         st.markdown(f"**Target:** {target}")
                         
                         # Check for existing classification
@@ -2830,7 +2829,7 @@ def show_drug_search(app):
                             else:
                                 st.info("ℹ️ No classification available yet")
                     
-                    with col2:
+                with col2:
                         if app.classifier:
                             if st.button(f"🔬 Classify Mechanism", key=f"classify_{selected_drug}_{target}"):
                                 with st.spinner(f"Classifying {selected_drug} → {target}..."):
