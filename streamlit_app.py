@@ -2802,8 +2802,8 @@ def show_drug_search(app):
             
             # Display targets with classification options
             for target in drug_details['targets']:
-                with st.expander(f"🎯 **{target}** - Click for mechanism details"):
-                    col1, col2 = st.columns([2, 1])
+                st.markdown(f"### 🎯 **{target}** – Mechanism details")
+                col1, col2 = st.columns([2, 1])
                     
                     with col1:
                         st.markdown(f"**Target:** {target}")
