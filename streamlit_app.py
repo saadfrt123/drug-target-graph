@@ -56,13 +56,7 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Page configuration
-st.set_page_config(
-    page_title="Drug-Target Graph Database",
-    page_icon="💊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# Note: Page config was already set above. Avoid calling st.set_page_config twice.
 
 # Custom CSS for better styling
 st.markdown("""
