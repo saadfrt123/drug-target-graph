@@ -3314,13 +3314,13 @@ def show_drug_search(app):
                 
                 for idx, row in similar_df.iterrows():
                     st.markdown(f"#### 💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown(f"**Drug:** {row['Drug Name']}")
-                            st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
-                        with col2:
-                            st.markdown(f"**Phase:** {row['Development Phase']}")
-                            st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**Drug:** {row['Drug Name']}")
+                        st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
+                    with col2:
+                        st.markdown(f"**Phase:** {row['Development Phase']}")
+                        st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
                         
                         # Add visual indicator for similarity strength
                         shared_count = int(row['Shared Targets'])
