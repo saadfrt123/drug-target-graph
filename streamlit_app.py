@@ -3442,8 +3442,8 @@ def show_target_search(app):
                                         
                                         # Scientific reasoning
                                         if drug['reasoning']:
-                                            with st.expander("📝 Scientific Reasoning"):
-                                                st.write(drug['reasoning'])
+                                            st.markdown("**📝 Scientific Reasoning**")
+                                            st.write(drug['reasoning'])
                                     else:
                                         st.info("ℹ️ No mechanism classification available yet")
                                 
@@ -4232,8 +4232,8 @@ def show_mechanism_classification(app):
                     st.metric("🎯 Confidence", f"{existing['confidence']:.1%}")
                     st.metric("📅 Date", existing['timestamp'][:10])
                 
-                with st.expander("📝 Scientific Reasoning"):
-                    st.write(existing['reasoning'])
+                st.markdown("**📝 Scientific Reasoning**")
+                st.write(existing['reasoning'])
                 
                 # Reclassify option
                 if st.button("🔄 Reclassify", help="Force a new classification"):
