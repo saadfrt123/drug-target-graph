@@ -613,7 +613,7 @@ class DrugTargetGraphApp:
             st.success("✅ Cloud database selected - perfect for demos!")
             
             # Add helpful info about Aura connections
-            with st.expander("🆘 Connection Issues? Click here for help"):
+            st.markdown("### 🆘 Connection Issues? Click here for help")
                 st.warning("""
                 **Common Neo4j Aura Connection Issues:**
                 
@@ -2443,9 +2443,9 @@ def show_drug_search(app):
                         st.markdown("### 🧪 **Chemical Structure**")
                         
                         # Show SMILES notation
-                        with st.expander("📝 SMILES Notation"):
-                            st.code(drug_details['drug_info']['smiles'], language='text')
-                            st.caption("SMILES notation - textual representation of the molecular structure")
+                        st.markdown("#### 📝 SMILES Notation")
+                        st.code(drug_details['drug_info']['smiles'], language='text')
+                        st.caption("SMILES notation - textual representation of the molecular structure")
                         
                         # 3D Molecular Visualization
                         st.markdown("#### 🌐 **Interactive 3D Molecular Structure**")
@@ -2485,9 +2485,9 @@ def show_drug_search(app):
                                     if mol is None:
                                         st.warning(f"⚠️ Tried {len(smiles_list)} SMILES variants, none could be parsed")
                                         # Show all the SMILES that were tried
-                                        with st.expander("🔍 See all SMILES variants tried"):
-                                            for i, s in enumerate(smiles_list):
-                                                st.code(f"{i+1}. {s}")
+                                        st.markdown("##### 🔍 See all SMILES variants tried")
+                                        for i, s in enumerate(smiles_list):
+                                            st.code(f"{i+1}. {s}")
                                     
                                     # Continue with the working molecule
                                     if mol is not None:
@@ -3314,7 +3314,7 @@ def show_drug_search(app):
                 st.markdown("### 📊 **Similar Drugs Details:**")
                 
                 for idx, row in similar_df.iterrows():
-                    with st.expander(f"💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets"):
+                    st.markdown(f"#### 💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets")
                         col1, col2 = st.columns(2)
                         with col1:
                             st.markdown(f"**Drug:** {row['Drug Name']}")
@@ -3753,7 +3753,7 @@ def show_drug_discovery(app):
                         # Show MOA breakdown
                         st.subheader("⚙️ Mechanisms of Action Breakdown")
                         for moa, targets in pathways['moa_groups'].items():
-                            with st.expander(f"🔬 {moa} ({len(targets)} targets)"):
+                            st.markdown(f"#### 🔬 {moa} ({len(targets)} targets)")
                                 for target in targets:
                                     st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
                     else:
@@ -4105,7 +4105,7 @@ def show_drug_repurposing(app):
                 st.subheader("🎯 Direct Repurposing Candidates")
                 
                 for candidate in repurposing_candidates:
-                    with st.expander(f"💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})"):
+                    st.markdown(f"#### 💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})")
                         col1, col2 = st.columns(2)
                         with col1:
                             st.write(f"**Source Drug:** {candidate['source_drug']}")
