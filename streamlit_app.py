@@ -2824,9 +2824,9 @@ def show_drug_search(app):
                                     st.metric("⚙️ Mechanism", existing_classification['mechanism'])
                                     st.metric("🎯 Confidence", f"{existing_classification['confidence']:.1%}")
                                 
-                                with st.expander("📝 Scientific Reasoning"):
-                                    st.write(existing_classification['reasoning'])
-                                    st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
+                                st.markdown("**📝 Scientific Reasoning**")
+                                st.write(existing_classification['reasoning'])
+                                st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
                             else:
                                 st.info("ℹ️ No classification available yet")
                     
