@@ -588,122 +588,59 @@ class DrugTargetGraphApp:
     def get_manual_connection(self):
         """Get manual connection details from user"""
         st.markdown('<div class="connection-form">', unsafe_allow_html=True)
-        st.header("🔗 Neo4j Connection")
+        st.header("🔗 Database Connection")
         
         # Connection type selector
         connection_type = st.selectbox(
-            "🌐 Choose Database:",
+            "Choose Database:",
             ["☁️ Neo4j Aura (Cloud)", "💻 Local Database"]
         )
         
         if connection_type == "☁️ Neo4j Aura (Cloud)":
-            st.info("🌤️ Using Neo4j Aura Cloud Database")
-            
             # Pre-filled cloud connection details
             col1, col2 = st.columns(2)
             
             with col1:
-                uri = st.text_input("Neo4j Aura URI", value="neo4j+s://c8287756.databases.neo4j.io", help="Your Aura instance URI")
-                user = st.text_input("Username", value="neo4j", help="Default username is 'neo4j'")
+                uri = st.text_input("Neo4j Aura URI", value="neo4j+s://c8287756.databases.neo4j.io")
+                user = st.text_input("Username", value="neo4j")
             
             with col2:
-                password = st.text_input("Password", type="password", value="bsSvDn8Kh-qVZrtwwAH2t3yhLf0pGjDKzCL8Bs5jqkM", help="Your Aura database password")
-                database = st.text_input("Database", value="neo4j", help="Usually 'neo4j'")
-            
-            st.success("✅ Cloud database selected - perfect for demos!")
-            
-            # Add helpful info about Aura connections
-            st.markdown("### 🆘 Connection Issues? Click here for help")
-            st.warning("""
-                **Common Neo4j Aura Connection Issues:**
-                
-                🔄 **Instance Starting Up:** 
-                - Wait 60-90 seconds after creating your Aura instance
-                - Try the "Test Connection" button first
-                
-                🌐 **DNS Resolution:** 
-                - Your Aura instance might be in a different region
-                - Check https://console.neo4j.io to verify status
-                
-                ⏰ **Timeout Issues:**
-                - Streamlit Cloud has network timeouts
-                - Multiple connection attempts may be needed
-                
-                🔑 **Quick Alternative:** 
-                - Switch to "Local" and use your local Neo4j if available
-                - Your local database already has all the data!
-                """)
-            
-            if st.button("🔄 Try Alternative Connection Strategy"):
-                    st.info("""
-                    **Alternative Connection Approach:**
-                    1. Use your local Neo4j database (switch to Local mode)
-                    2. Your local database has all the enhanced data
-                    3. Perfect for reliable demonstrations
-                    """)
-                    st.success("💡 Local Neo4j is often more reliable for demos!")
+                password = st.text_input("Password", type="password", value="bsSvDn8Kh-qVZrtwwAH2t3yhLf0pGjDKzCL8Bs5jqkM")
+                database = st.text_input("Database", value="neo4j")
             
         else:
-            st.info("💻 Using Local Neo4j Database")
-            
             # Local connection details
             col1, col2 = st.columns(2)
             
             with col1:
-                uri = st.text_input("Neo4j URI", value="bolt://127.0.0.1:7687", help="Usually bolt://127.0.0.1:7687")
-                user = st.text_input("Username", value="neo4j", help="Default username is 'neo4j'")
+                uri = st.text_input("Neo4j URI", value="bolt://127.0.0.1:7687")
+                user = st.text_input("Username", value="neo4j")
             
             with col2:
-                password = st.text_input("Password", type="password", value="11223344", help="Your Neo4j password")
-                database = st.text_input("Database", value="neo4j", help="Usually 'neo4j'")
+                password = st.text_input("Password", type="password", value="11223344")
+                database = st.text_input("Database", value="neo4j")
         
         # Connection buttons
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
             if st.button("🧪 Test Connection", type="secondary"):
                 with st.spinner("Testing connection..."):
                     try:
-                        # Add timeout and proper configuration for Aura
                         from neo4j import GraphDatabase, basic_auth
-                        import time
-                        
-                        # Configuration for Aura connections (no encryption settings for neo4j+s://)
-                        config = {
-                            "max_connection_lifetime": 30,
-                            "max_connection_pool_size": 50,
-                            "connection_acquisition_timeout": 60
-                        }
                         
                         if "neo4j+s://" in uri:
-                            st.info("🔄 Connecting to Neo4j Aura (this may take 10-15 seconds)...")
-                            time.sleep(2)  # Brief delay for Aura
-                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password), **config)
+                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
                         else:
                             test_driver = GraphDatabase.driver(uri, auth=(user, password))
                         
                         with test_driver.session(database=database) as session:
                             result = session.run("RETURN 1 as test").single()
-                            st.success(f"✅ Connection test successful! Database is responsive.")
+                            st.success("✅ Connection successful!")
                         test_driver.close()
                         
                     except Exception as e:
-                        error_msg = str(e)
-                        st.error(f"❌ Connection test failed: {error_msg}")
-                        
-                        # Provide specific help based on error type
-                        if "Cannot resolve address" in error_msg:
-                            st.warning("""
-                            🔧 **DNS Resolution Issue:**
-                            - Your Neo4j Aura instance might still be starting up
-                            - Wait 60 seconds after creating the instance
-                            - Check if you can access https://console.neo4j.io
-                            - Verify the URI is correct in your Aura console
-                            """)
-                        elif "authentication" in error_msg.lower():
-                            st.warning("🔑 **Authentication Issue:** Check your username and password")
-                        elif "ServiceUnavailable" in error_msg:
-                            st.warning("🚫 **Service Issue:** The database might be starting up or temporarily unavailable")
+                        st.error(f"❌ Connection failed: {str(e)}")
         
         with col2:
             if st.button("🔗 Connect", type="primary"):
@@ -1681,8 +1618,7 @@ def main():
     
     # Show connection status and setup
     if not app.driver:
-        st.info("🔗 Please connect to Neo4j database using the connection form below.")
-        st.warning("⚠️ Make sure Neo4j Desktop is running and your database is started!")
+        st.info("🔗 Please connect to your database to get started.")
         
         # Show connection form in main area if not connected
         app.get_manual_connection()
@@ -2800,11 +2736,24 @@ def show_drug_search(app):
                 else:
                     st.info("🔬 **Mechanism classifications available** - Use 'Classify Mechanism' buttons for detailed insights")
             
-            # Display targets with classification options
+            # Display targets with expanders for clean organization
+            st.markdown("### 🎯 **Biological Targets**")
+            
+            # Show targets in expandable sections
             for target in drug_details['targets']:
-                st.markdown(f"### 🎯 **{target}** – Mechanism details")
-                col1, col2 = st.columns([2, 1])
-                with col1:
+                # Check if target has classification
+                has_classification = False
+                if app.classifier:
+                    existing_classification = app.classifier.get_existing_classification(selected_drug, target)
+                    has_classification = existing_classification is not None
+                
+                # Create expander with status indicator
+                status_icon = "✅" if has_classification else "⏳"
+                with st.expander(f"{status_icon} **{target}** - Click for details"):
+                    
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
                         st.markdown(f"**Target:** {target}")
                         
                         # Check for existing classification
@@ -2828,8 +2777,8 @@ def show_drug_search(app):
                                 st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
                             else:
                                 st.info("ℹ️ No classification available yet")
-                
-                with col2:
+                    
+                    with col2:
                         if app.classifier:
                             if st.button(f"🔬 Classify Mechanism", key=f"classify_{selected_drug}_{target}"):
                                 with st.spinner(f"Classifying {selected_drug} → {target}..."):
@@ -2843,21 +2792,6 @@ def show_drug_search(app):
                         else:
                             st.info("🔧 Set GEMINI_API_KEY to enable classification")
             
-            # Alternative: Display in grid for simple view
-            st.markdown("#### 📋 **Quick Target List:**")
-            targets_per_row = 3
-            for i in range(0, len(drug_details['targets']), targets_per_row):
-                cols = st.columns(targets_per_row)
-                for j, target in enumerate(drug_details['targets'][i:i+targets_per_row]):
-                    with cols[j]:
-                        # Check if classified
-                        classified = False
-                        if app.classifier:
-                            existing = app.classifier.get_existing_classification(selected_drug, target)
-                            classified = existing is not None
-                        
-                        status_icon = "✅" if classified else "⏳"
-                        st.markdown(f"{status_icon} **{target}**")
         else:
             st.warning("No biological targets found in database")
                     
