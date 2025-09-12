@@ -5,8 +5,8 @@ plotly==5.17.0
 networkx==3.2.1
 # Numpy compatible with Streamlit 1.28 (<2) and Py3.13 wheels
 numpy>=1.26.4,<2
-rdkit-pypi==2023.3.1b1
-stmol==0.0.9
+rdkit-pypi
+stmol
 requests==2.31.0
 google-generativeai==0.8.5
 python-dotenv==1.0.0
