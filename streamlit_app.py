@@ -705,33 +705,6 @@ class DrugTargetGraphApp:
                             st.warning("🚫 **Service Issue:** The Aura instance might be paused or starting up")
                         return False
         
-        with col3:
-            if st.button("📋 Show Help", type="secondary"):
-                if connection_type == "☁️ Neo4j Aura (Cloud)":
-                    st.info("""
-                    **Neo4j Aura Cloud Help:**
-                    
-                    1. **URI**: neo4j+s://c8287756.databases.neo4j.io
-                    2. **Username**: neo4j
-                    3. **Password**: Your Aura password
-                    4. **Database**: neo4j
-                    5. **Perfect for demos and presentations!**
-                    """)
-                else:
-                    st.info("""
-                    **Local Database Help:**
-                    
-                    1. **Make sure Neo4j Desktop is running**
-                    2. **Start your database instance** (should show "Started")
-                    3. **Check your password** in Neo4j Desktop
-                    4. **Try the Test Connection button first**
-                    
-                    **Common settings:**
-                    - URI: bolt://127.0.0.1:7687
-                    - Username: neo4j
-                    - Password: 11223344 (or your custom password)
-                    - Database: neo4j
-                    """)
         
         st.markdown('</div>', unsafe_allow_html=True)
         return False
@@ -2240,71 +2213,8 @@ def show_drug_search(app):
             # Streamlit 1.28 requires width as int; use full container width instead
             st.dataframe(df, use_container_width=True)
             
-            # Simple Visual Preview
-            st.markdown("### 📊 **Found Drugs Summary**")
-            if len(results) <= 3:  # Show simple visual for small result sets
-                st.info("📈 Visual summary of found drugs and their target counts:")
-                
-                # Create a simple bar chart of drugs and their target counts
-                try:
-                    import plotly.graph_objects as go
-                    
-                    drug_names = []
-                    target_counts = []
-                    
-                    # Get target counts for each drug
-                    for drug in results:
-                        drug_name = drug['drug']
-                        drug_details = app.get_drug_details(drug_name)
-                        if drug_details and drug_details['targets']:
-                            drug_names.append(drug_name[:15] + "..." if len(drug_name) > 15 else drug_name)
-                            target_counts.append(len(drug_details['targets']))
-                    
-                    if drug_names and target_counts:
-                        # Create simple bar chart
-                        fig = go.Figure(data=[
-                            go.Bar(
-                                x=drug_names,
-                                y=target_counts,
-                                marker_color='lightblue',
-                                marker_line_color='darkblue',
-                                marker_line_width=2,
-                                text=target_counts,
-                                textposition='auto',
-                                textfont=dict(size=14, color='darkblue')
-                            )
-                        ])
-                        
-                        fig.update_layout(
-                            title=dict(
-                                text="🎯 Number of Targets per Drug",
-                                font=dict(size=16, color='darkblue'),
-                                x=0.5
-                            ),
-                            height=300,
-                            showlegend=False,
-                            plot_bgcolor='white',
-                            paper_bgcolor='white',
-                            margin=dict(l=50, r=50, t=60, b=50),
-                            xaxis=dict(
-                                title="Drugs",
-                                titlefont=dict(size=12, color='gray'),
-                                tickfont=dict(size=10, color='gray')
-                            ),
-                            yaxis=dict(
-                                title="Number of Targets",
-                                titlefont=dict(size=12, color='gray'),
-                                tickfont=dict(size=10, color='gray')
-                            )
-                        )
-                        
-                        st.plotly_chart(fig, width='stretch')
-                        st.caption("📊 Select a drug below to see its detailed network visualization")
-                    
-                except Exception as e:
-                    st.info("📋 Select a drug below for detailed visualization.")
-            else:
-                st.info("📋 Select a drug below for detailed network visualization.")
+            # Simple summary
+            st.info(f"📋 Found {len(results)} drugs. Select one below for detailed information.")
             
             # Allow user to select a drug for detailed view
             selected_drug = st.selectbox("Select a drug for detailed view:", [r['drug'] for r in results])
