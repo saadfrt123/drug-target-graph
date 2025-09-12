@@ -615,34 +615,34 @@ class DrugTargetGraphApp:
             # Add helpful info about Aura connections
             st.markdown("### 🆘 Connection Issues? Click here for help")
             st.warning("""
-            **Common Neo4j Aura Connection Issues:**
-            
-            🔄 **Instance Starting Up:** 
-            - Wait 60-90 seconds after creating your Aura instance
-            - Try the "Test Connection" button first
-            
-            🌐 **DNS Resolution:** 
-            - Your Aura instance might be in a different region
-            - Check https://console.neo4j.io to verify status
-            
-            ⏰ **Timeout Issues:**
-            - Streamlit Cloud has network timeouts
-            - Multiple connection attempts may be needed
-            
-            🔑 **Quick Alternative:** 
-            - Switch to "Local" and use your local Neo4j if available
-            - Your local database already has all the data!
-            """)
+                **Common Neo4j Aura Connection Issues:**
+                
+                🔄 **Instance Starting Up:** 
+                - Wait 60-90 seconds after creating your Aura instance
+                - Try the "Test Connection" button first
+                
+                🌐 **DNS Resolution:** 
+                - Your Aura instance might be in a different region
+                - Check https://console.neo4j.io to verify status
+                
+                ⏰ **Timeout Issues:**
+                - Streamlit Cloud has network timeouts
+                - Multiple connection attempts may be needed
+                
+                🔑 **Quick Alternative:** 
+                - Switch to "Local" and use your local Neo4j if available
+                - Your local database already has all the data!
+                """)
             
             if st.button("🔄 Try Alternative Connection Strategy"):
-                st.info("""
-                **Alternative Connection Approach:**
-                1. Use your local Neo4j database (switch to Local mode)
-                2. Your local database has all the enhanced data
-                3. Perfect for reliable demonstrations
-                """)
-                st.success("💡 Local Neo4j is often more reliable for demos!")
-        
+                    st.info("""
+                    **Alternative Connection Approach:**
+                    1. Use your local Neo4j database (switch to Local mode)
+                    2. Your local database has all the enhanced data
+                    3. Perfect for reliable demonstrations
+                    """)
+                    st.success("💡 Local Neo4j is often more reliable for demos!")
+            
         else:
             st.info("💻 Using Local Neo4j Database")
             
@@ -2828,7 +2828,7 @@ def show_drug_search(app):
                                 st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
                             else:
                                 st.info("ℹ️ No classification available yet")
-                    
+                
                 with col2:
                         if app.classifier:
                             if st.button(f"🔬 Classify Mechanism", key=f"classify_{selected_drug}_{target}"):
@@ -3753,8 +3753,8 @@ def show_drug_discovery(app):
                         st.subheader("⚙️ Mechanisms of Action Breakdown")
                         for moa, targets in pathways['moa_groups'].items():
                             st.markdown(f"#### 🔬 {moa} ({len(targets)} targets)")
-                                for target in targets:
-                                    st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
+                            for target in targets:
+                                st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
                     else:
                         st.error("Could not analyze pathways. Please check drug name.")
     
@@ -4105,17 +4105,17 @@ def show_drug_repurposing(app):
                 
                 for candidate in repurposing_candidates:
                     st.markdown(f"#### 💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**Source Drug:** {candidate['source_drug']}")
-                            st.write(f"**MOA:** {candidate['source_moa']}")
-                            st.write(f"**Phase:** {candidate['source_phase']}")
-                        with col2:
-                            st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
-                            st.write(f"**MOA:** {candidate['candidate_moa']}")
-                            st.write(f"**Phase:** {candidate['candidate_phase']}")
-                        
-                        st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Source Drug:** {candidate['source_drug']}")
+                        st.write(f"**MOA:** {candidate['source_moa']}")
+                        st.write(f"**Phase:** {candidate['source_phase']}")
+                    with col2:
+                        st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
+                        st.write(f"**MOA:** {candidate['candidate_moa']}")
+                        st.write(f"**Phase:** {candidate['candidate_phase']}")
+                    
+                    st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
     
     with tab2:
         st.subheader("🌟 Top Repurposing Opportunities")
