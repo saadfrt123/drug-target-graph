@@ -2176,6 +2176,9 @@ def show_drug_search(app):
     """Show drug search interface"""
     st.header("🔍 Drug Search")
     
+    # Initialize drug_details to None to avoid UnboundLocalError
+    drug_details = None
+    
     # Add helpful introduction
     st.markdown("""
     **What can you do here?** Search for any drug to see detailed information about it.
@@ -3259,8 +3262,49 @@ def show_target_search(app):
                     # Debug: Show what we found
                     st.info(f"Debug: Found {len(target_details['drugs'])} drugs for target {selected_target}")
                     
+                    # Add "Classify All" button if there are unclassified drugs
+                    unclassified_drugs = [drug for drug in target_details['drugs'] if not drug['is_classified']]
+                    if unclassified_drugs and app.classifier:
+                        col1, col2, col3 = st.columns([1, 2, 1])
+                        with col2:
+                            if st.button(f"🔬 **Classify All {len(unclassified_drugs)} Unclassified Drugs**", 
+                                       help=f"Classify all {len(unclassified_drugs)} unclassified drug-target relationships for {selected_target}",
+                                       type="primary"):
+                                with st.spinner(f"Classifying {len(unclassified_drugs)} drugs for {selected_target}... This may take a few minutes."):
+                                    success_count = 0
+                                    error_count = 0
+                                    
+                                    # Create progress bar
+                                    progress_bar = st.progress(0)
+                                    status_text = st.empty()
+                                    
+                                    for i, drug in enumerate(unclassified_drugs):
+                                        status_text.text(f"Classifying {drug['drug_name']} → {selected_target} ({i+1}/{len(unclassified_drugs)})")
+                                        
+                                        try:
+                                            classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
+                                            if classification:
+                                                success_count += 1
+                                            else:
+                                                error_count += 1
+                                        except Exception as e:
+                                            error_count += 1
+                                            st.error(f"Error classifying {drug['drug_name']}: {e}")
+                                        
+                                        # Update progress
+                                        progress_bar.progress((i + 1) / len(unclassified_drugs))
+                                    
+                                    # Show results
+                                    status_text.text("Classification complete!")
+                                    st.success(f"✅ Successfully classified {success_count} drugs")
+                                    if error_count > 0:
+                                        st.warning(f"⚠️ {error_count} drugs failed to classify")
+                                    
+                                    st.info("🔄 Refreshing page to show updated classifications...")
+                                    st.rerun()
+                    
                     if target_details['drugs']:
-                        # Show a simple table first
+                        # Show a simple table first with better styling
                         drugs_data = []
                         for drug in target_details['drugs']:
                             drugs_data.append({
@@ -3272,7 +3316,17 @@ def show_target_search(app):
                         
                         if drugs_data:
                             drugs_df = pd.DataFrame(drugs_data)
-                            st.dataframe(drugs_df, use_container_width=True)
+                            
+                            # Add some styling to make the table more visible
+                            st.markdown("### 📋 **Drugs Table**")
+                            st.markdown("**Found drugs targeting this target:**")
+                            
+                            # Use st.table instead of st.dataframe for better visibility
+                            st.table(drugs_df)
+                            
+                            # Also show as dataframe with explicit styling
+                            st.markdown("**Alternative view:**")
+                            st.dataframe(drugs_df, use_container_width=True, hide_index=True)
                         # Enhanced display with mechanism details
                         for drug in target_details['drugs']:
                             with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
@@ -3379,7 +3433,12 @@ def show_target_search(app):
                             }
                             display_df = display_df.rename(columns=column_names)
                             
-                            st.dataframe(display_df, use_container_width=True)
+                            # Use both st.table and st.dataframe for better visibility
+                            st.markdown("**Table view (more visible):**")
+                            st.table(display_df)
+                            
+                            st.markdown("**DataFrame view:**")
+                            st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
                         st.warning("No drugs found targeting this target.")
         else:
