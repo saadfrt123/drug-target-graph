@@ -6,6 +6,7 @@ networkx==3.2.1
 numpy>=1.26.4,<2
 rdkit-pypi
 stmol
+ipython-genutils
 requests==2.31.0
 google-generativeai==0.8.5
 python-dotenv==1.0.0
