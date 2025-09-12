@@ -3321,12 +3321,8 @@ def show_target_search(app):
                             st.markdown("### 📋 **Drugs Table**")
                             st.markdown("**Found drugs targeting this target:**")
                             
-                            # Use st.table instead of st.dataframe for better visibility
+                            # Use st.table for better visibility
                             st.table(drugs_df)
-                            
-                            # Also show as dataframe with explicit styling
-                            st.markdown("**Alternative view:**")
-                            st.dataframe(drugs_df, use_container_width=True, hide_index=True)
                         # Enhanced display with mechanism details
                         for drug in target_details['drugs']:
                             with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
@@ -3433,12 +3429,8 @@ def show_target_search(app):
                             }
                             display_df = display_df.rename(columns=column_names)
                             
-                            # Use both st.table and st.dataframe for better visibility
-                            st.markdown("**Table view (more visible):**")
+                            # Use st.table for better visibility
                             st.table(display_df)
-                            
-                            st.markdown("**DataFrame view:**")
-                            st.dataframe(display_df, use_container_width=True, hide_index=True)
                     else:
                         st.warning("No drugs found targeting this target.")
         else:
