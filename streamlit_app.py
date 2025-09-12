@@ -3256,7 +3256,23 @@ def show_target_search(app):
                     # Drugs Targeting This Target
                     st.markdown("### 💊 **Drugs Targeting This Target**")
                     
+                    # Debug: Show what we found
+                    st.info(f"Debug: Found {len(target_details['drugs'])} drugs for target {selected_target}")
+                    
                     if target_details['drugs']:
+                        # Show a simple table first
+                        drugs_data = []
+                        for drug in target_details['drugs']:
+                            drugs_data.append({
+                                'Drug Name': drug['drug_name'],
+                                'MOA': drug['drug_moa'] or 'Not specified',
+                                'Phase': drug['drug_phase'] or 'Unknown',
+                                'Classified': '✅ Yes' if drug['is_classified'] else '⏳ No'
+                            })
+                        
+                        if drugs_data:
+                            drugs_df = pd.DataFrame(drugs_data)
+                            st.dataframe(drugs_df, use_container_width=True)
                         # Enhanced display with mechanism details
                         for drug in target_details['drugs']:
                             with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
