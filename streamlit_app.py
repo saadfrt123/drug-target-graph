@@ -2719,17 +2719,95 @@ def show_drug_search(app):
                                             """, unsafe_allow_html=True)
                                             
                                             # Use st.table for better visibility
-                                            st.markdown("**📋 Quick View:**")
+                                            st.markdown("**📋 Table View:**")
                                             st.table(drugs_df)
-                                            
-                                            # Also show as styled dataframe
-                                            st.markdown("**📊 Detailed View:**")
-                                            st.dataframe(drugs_df, use_container_width=True, hide_index=True)
                                             
                                             # Alternative markdown display for better visibility
                                             st.markdown("**📝 List View:**")
                                             for i, drug in enumerate(drugs_data, 1):
                                                 st.markdown(f"**{i}.** **{drug['Drug Name']}** - {drug['MOA']} - {drug['Phase']} - {drug['Classified']}")
+                                            
+                                            # Add network visualization
+                                            st.markdown("**🕸️ Network Visualization:**")
+                                            try:
+                                                # Create a simple network graph
+                                                import networkx as nx
+                                                import plotly.graph_objects as go
+                                                
+                                                # Create network graph
+                                                G = nx.Graph()
+                                                
+                                                # Add target as central node
+                                                G.add_node(target, node_type='target', size=20, color='red')
+                                                
+                                                # Add drugs as nodes
+                                                for drug in drugs_data:
+                                                    drug_name = drug['Drug Name']
+                                                    G.add_node(drug_name, node_type='drug', size=15, color='blue')
+                                                    G.add_edge(target, drug_name)
+                                                
+                                                # Get positions
+                                                pos = nx.spring_layout(G, k=3, iterations=50)
+                                                
+                                                # Create plotly figure
+                                                fig = go.Figure()
+                                                
+                                                # Add edges
+                                                for edge in G.edges():
+                                                    x0, y0 = pos[edge[0]]
+                                                    x1, y1 = pos[edge[1]]
+                                                    fig.add_trace(go.Scatter(
+                                                        x=[x0, x1, None],
+                                                        y=[y0, y1, None],
+                                                        mode='lines',
+                                                        line=dict(color='gray', width=2),
+                                                        hoverinfo='none',
+                                                        showlegend=False
+                                                    ))
+                                                
+                                                # Add nodes
+                                                for node in G.nodes():
+                                                    x, y = pos[node]
+                                                    node_type = G.nodes[node]['node_type']
+                                                    color = 'red' if node_type == 'target' else 'blue'
+                                                    size = 20 if node_type == 'target' else 15
+                                                    
+                                                    fig.add_trace(go.Scatter(
+                                                        x=[x],
+                                                        y=[y],
+                                                        mode='markers+text',
+                                                        marker=dict(size=size, color=color),
+                                                        text=node,
+                                                        textposition="middle center",
+                                                        textfont=dict(size=10, color='white'),
+                                                        hoverinfo='text',
+                                                        hovertext=f"{node} ({node_type})",
+                                                        showlegend=False
+                                                    ))
+                                                
+                                                # Update layout
+                                                fig.update_layout(
+                                                    title=f"Drug-Target Network: {target}",
+                                                    showlegend=False,
+                                                    hovermode='closest',
+                                                    margin=dict(b=20,l=5,r=5,t=40),
+                                                    annotations=[ dict(
+                                                        text="Red: Target, Blue: Drugs",
+                                                        showarrow=False,
+                                                        xref="paper", yref="paper",
+                                                        x=0.005, y=-0.002,
+                                                        xanchor='left', yanchor='bottom',
+                                                        font=dict(color='gray', size=12)
+                                                    )],
+                                                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                                    height=400
+                                                )
+                                                
+                                                st.plotly_chart(fig, use_container_width=True)
+                                                
+                                            except Exception as e:
+                                                st.info("Network visualization not available (missing dependencies)")
                                             
                                             if len(target_details['drugs']) > 10:
                                                 st.info(f"Showing top 10 of {len(target_details['drugs'])} drugs targeting {target}")
@@ -3493,6 +3571,115 @@ def show_target_search(app):
                                             except Exception as e:
                                                 st.error(f"Error loading drug details: {e}")
                         # Duplicate section removed - now handled above with unified information
+                        
+                        # Add network visualization for all drugs targeting this target
+                        st.markdown("### 🕸️ **Network Visualization**")
+                        try:
+                            import networkx as nx
+                            import plotly.graph_objects as go
+                            
+                            # Create network graph
+                            G = nx.Graph()
+                            
+                            # Add target as central node
+                            G.add_node(selected_target, node_type='target', size=25, color='red')
+                            
+                            # Add drugs as nodes with different colors based on classification
+                            for drug in target_details['drugs']:
+                                drug_name = drug['drug_name']
+                                node_color = 'green' if drug['is_classified'] else 'orange'
+                                node_size = 20 if drug['is_classified'] else 15
+                                
+                                G.add_node(drug_name, 
+                                          node_type='drug', 
+                                          size=node_size, 
+                                          color=node_color,
+                                          moa=drug['drug_moa'] or 'Not specified',
+                                          phase=drug['drug_phase'] or 'Unknown',
+                                          classified=drug['is_classified'])
+                                G.add_edge(selected_target, drug_name)
+                            
+                            # Get positions
+                            pos = nx.spring_layout(G, k=4, iterations=100)
+                            
+                            # Create plotly figure
+                            fig = go.Figure()
+                            
+                            # Add edges
+                            for edge in G.edges():
+                                x0, y0 = pos[edge[0]]
+                                x1, y1 = pos[edge[1]]
+                                fig.add_trace(go.Scatter(
+                                    x=[x0, x1, None],
+                                    y=[y0, y1, None],
+                                    mode='lines',
+                                    line=dict(color='lightgray', width=1),
+                                    hoverinfo='none',
+                                    showlegend=False
+                                ))
+                            
+                            # Add target node
+                            target_x, target_y = pos[selected_target]
+                            fig.add_trace(go.Scatter(
+                                x=[target_x],
+                                y=[target_y],
+                                mode='markers+text',
+                                marker=dict(size=25, color='red', symbol='diamond'),
+                                text=selected_target,
+                                textposition="middle center",
+                                textfont=dict(size=12, color='white', family="Arial Black"),
+                                hoverinfo='text',
+                                hovertext=f"Target: {selected_target}",
+                                showlegend=False
+                            ))
+                            
+                            # Add drug nodes
+                            for node in G.nodes():
+                                if node != selected_target:
+                                    x, y = pos[node]
+                                    node_data = G.nodes[node]
+                                    color = node_data['color']
+                                    size = node_data['size']
+                                    
+                                    fig.add_trace(go.Scatter(
+                                        x=[x],
+                                        y=[y],
+                                        mode='markers+text',
+                                        marker=dict(size=size, color=color, symbol='circle'),
+                                        text=node,
+                                        textposition="middle center",
+                                        textfont=dict(size=8, color='white'),
+                                        hoverinfo='text',
+                                        hovertext=f"Drug: {node}<br>MOA: {node_data['moa']}<br>Phase: {node_data['phase']}<br>Classified: {'Yes' if node_data['classified'] else 'No'}",
+                                        showlegend=False
+                                    ))
+                            
+                            # Update layout
+                            fig.update_layout(
+                                title=f"Drug-Target Network: {selected_target}",
+                                showlegend=False,
+                                hovermode='closest',
+                                margin=dict(b=40,l=5,r=5,t=60),
+                                annotations=[
+                                    dict(
+                                        text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs",
+                                        showarrow=False,
+                                        xref="paper", yref="paper",
+                                        x=0.5, y=-0.1,
+                                        xanchor='center', yanchor='top',
+                                        font=dict(color='gray', size=12)
+                                    )
+                                ],
+                                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                height=500,
+                                plot_bgcolor='white'
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                        except Exception as e:
+                            st.info("Network visualization not available (missing dependencies)")
                         
                         # Summary Statistics and Visualizations
                         st.markdown("### 📈 **Drug Analysis Summary**")
