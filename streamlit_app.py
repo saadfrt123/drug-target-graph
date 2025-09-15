@@ -2694,7 +2694,42 @@ def show_drug_search(app):
                                         
                                         if drugs_data:
                                             drugs_df = pd.DataFrame(drugs_data)
+                                            
+                                            # Add custom CSS for better table visibility
+                                            st.markdown("""
+                                            <style>
+                                            .drug-table {
+                                                background-color: #f8f9fa;
+                                                border: 1px solid #dee2e6;
+                                                border-radius: 5px;
+                                                padding: 10px;
+                                                margin: 10px 0;
+                                            }
+                                            .drug-table th {
+                                                background-color: #007bff;
+                                                color: white;
+                                                padding: 8px;
+                                                text-align: left;
+                                            }
+                                            .drug-table td {
+                                                padding: 8px;
+                                                border-bottom: 1px solid #dee2e6;
+                                            }
+                                            </style>
+                                            """, unsafe_allow_html=True)
+                                            
+                                            # Use st.table for better visibility
+                                            st.markdown("**📋 Quick View:**")
+                                            st.table(drugs_df)
+                                            
+                                            # Also show as styled dataframe
+                                            st.markdown("**📊 Detailed View:**")
                                             st.dataframe(drugs_df, use_container_width=True, hide_index=True)
+                                            
+                                            # Alternative markdown display for better visibility
+                                            st.markdown("**📝 List View:**")
+                                            for i, drug in enumerate(drugs_data, 1):
+                                                st.markdown(f"**{i}.** **{drug['Drug Name']}** - {drug['MOA']} - {drug['Phase']} - {drug['Classified']}")
                                             
                                             if len(target_details['drugs']) > 10:
                                                 st.info(f"Showing top 10 of {len(target_details['drugs'])} drugs targeting {target}")
