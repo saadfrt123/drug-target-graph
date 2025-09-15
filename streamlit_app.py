@@ -2866,7 +2866,7 @@ def show_drug_search(app):
                                                     )
                                                 )
                                                 
-                                                # Display the interactive chart
+                                                # Display the interactive chart with click handling
                                                 selected_points = st.plotly_chart(fig, use_container_width=True, key=f"network_chart_{target}_{selected_drug}")
                                                 
                                                 # Add clickable drug information section with buttons
@@ -2881,6 +2881,19 @@ def show_drug_search(app):
                                                                    help=f"Click to see details for {drug['Drug Name']}"):
                                                             # Store selected drug in session state
                                                             st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = drug['Drug Name']
+                                                
+                                                # Add a selectbox for drug selection (alternative to clicking)
+                                                st.markdown("**Or select a drug from the dropdown:**")
+                                                drug_names = [drug['Drug Name'] for drug in drugs_data]
+                                                selected_drug_dropdown = st.selectbox(
+                                                    "Select a drug to view details:",
+                                                    options=[""] + drug_names,
+                                                    key=f"drug_dropdown_{target}_{selected_drug}",
+                                                    help="Select a drug from the network to see its details"
+                                                )
+                                                
+                                                if selected_drug_dropdown:
+                                                    st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = selected_drug_dropdown
                                                 
                                                 # Show details for selected drug
                                                 selected_drug_key = f'selected_drug_network_{target}_{selected_drug}'
@@ -3817,7 +3830,7 @@ def show_target_search(app):
                                 )
                             )
                             
-                            # Display the interactive chart
+                            # Display the interactive chart with click handling
                             selected_points = st.plotly_chart(fig, use_container_width=True, key=f"main_network_chart_{selected_target}")
                             
                             # Add clickable drug information section with buttons
@@ -3832,6 +3845,19 @@ def show_target_search(app):
                                                help=f"Click to see details for {drug['drug_name']}"):
                                         # Store selected drug in session state
                                         st.session_state[f'selected_drug_main_network_{selected_target}'] = drug['drug_name']
+                            
+                            # Add a selectbox for drug selection (alternative to clicking)
+                            st.markdown("**Or select a drug from the dropdown:**")
+                            drug_names = [drug['drug_name'] for drug in target_details['drugs']]
+                            selected_drug_dropdown = st.selectbox(
+                                "Select a drug to view details:",
+                                options=[""] + drug_names,
+                                key=f"main_drug_dropdown_{selected_target}",
+                                help="Select a drug from the network to see its details"
+                            )
+                            
+                            if selected_drug_dropdown:
+                                st.session_state[f'selected_drug_main_network_{selected_target}'] = selected_drug_dropdown
                             
                             # Show details for selected drug
                             selected_drug_key = f'selected_drug_main_network_{selected_target}'
