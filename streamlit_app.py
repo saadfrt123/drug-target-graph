@@ -1605,6 +1605,9 @@ def main():
         elif st.session_state.get('switch_to_moa_analysis'):
             page = "🧬 MOA Analysis"
             st.session_state.switch_to_moa_analysis = False
+        elif st.session_state.get('switch_to_drug_search'):
+            page = "🔍 Search Drugs"
+            st.session_state.switch_to_drug_search = False
         else:
             page = st.sidebar.selectbox(
                 "Choose a page:",
@@ -2202,8 +2205,14 @@ def show_drug_search(app):
         if st.button("Try: Metformin", help="Search for Metformin"):
             st.session_state.search_example = "metformin"
     
-    # Get search term from input or example
+    # Get search term from input, example, or navigation
     default_value = st.session_state.get('search_example', '')
+    if st.session_state.get('drug_to_view'):
+        default_value = st.session_state.drug_to_view
+        st.success(f"🔍 **Navigated from target search** - Showing details for drug: **{default_value}**")
+        # Clear the drug_to_view after using it
+        st.session_state.drug_to_view = None
+    
     search_term = st.text_input("Enter drug name or partial name:", value=default_value, help="You can search for full names or just part of a drug name")
     
     if search_term:
@@ -3235,6 +3244,17 @@ def show_target_search(app):
         st.success(f"🔍 **Navigated from drug search** - Showing details for target: **{default_target_value}**")
         # Clear the target_to_view after using it
         st.session_state.target_to_view = None
+        
+        # Add breadcrumb navigation
+        st.markdown("---")
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("← Back to Drug Search", help="Return to drug search"):
+                st.session_state.switch_to_drug_search = True
+                st.rerun()
+        with col2:
+            st.markdown("**Navigation:** Drug Search → Target Details")
+        st.markdown("---")
     
     search_term = st.text_input("Enter target name or partial name:", value=default_target_value, help="Search for protein names, receptor names, or enzyme names")
     
@@ -3338,14 +3358,39 @@ def show_target_search(app):
                             })
                         
                         if drugs_data:
-                            drugs_df = pd.DataFrame(drugs_data)
-                            
                             # Add some styling to make the table more visible
                             st.markdown("### 📋 **Drugs Table**")
                             st.markdown("**Found drugs targeting this target:**")
+                            st.info("💡 **Click on drug names to see detailed information, or click on MOAs to find similar drugs**")
                             
-                            # Use st.table for better visibility
-                            st.table(drugs_df)
+                            # Display drugs with clickable elements
+                            for i, drug in enumerate(target_details['drugs']):
+                                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
+                                
+                                with col1:
+                                    # Clickable drug name
+                                    if st.button(f"💊 **{drug['drug_name']}**", key=f"drug_btn_{drug['drug_name']}_{selected_target}_{i}"):
+                                        st.session_state.drug_to_view = drug['drug_name']
+                                        st.session_state.switch_to_drug_search = True
+                                        st.rerun()
+                                
+                                with col2:
+                                    # Clickable MOA
+                                    moa = drug['drug_moa'] or 'Not specified'
+                                    if moa != 'Not specified':
+                                        if st.button(f"🔬 **{moa}**", key=f"moa_btn_{moa}_{drug['drug_name']}_{i}"):
+                                            st.session_state.moa_to_search = moa
+                                            st.session_state.switch_to_moa_analysis = True
+                                            st.rerun()
+                                    else:
+                                        st.text("Not specified")
+                                
+                                with col3:
+                                    st.text(drug['drug_phase'] or 'Unknown')
+                                
+                                with col4:
+                                    status = '✅ Yes' if drug['is_classified'] else '⏳ No'
+                                    st.text(status)
                         # Enhanced display with mechanism details
                         for drug in target_details['drugs']:
                             with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
@@ -3888,6 +3933,17 @@ def show_moa_analysis(app):
         st.success(f"🔍 **Navigated from drug search** - Searching for MOA: **{moa_search}**")
         # Clear the moa_to_search after using it
         st.session_state.moa_to_search = None
+        
+        # Add breadcrumb navigation
+        st.markdown("---")
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button("← Back to Drug Search", help="Return to drug search"):
+                st.session_state.switch_to_drug_search = True
+                st.rerun()
+        with col2:
+            st.markdown("**Navigation:** Drug Search → MOA Analysis")
+        st.markdown("---")
     else:
         col1, col2 = st.columns([2, 1])
         with col1:
