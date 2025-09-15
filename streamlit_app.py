@@ -2867,29 +2867,50 @@ def show_drug_search(app):
                                                 )
                                                 
                                                 # Display the interactive chart
-                                                st.plotly_chart(fig, use_container_width=True)
+                                                selected_points = st.plotly_chart(fig, use_container_width=True, key=f"network_chart_{target}_{selected_drug}")
                                                 
-                                                # Add clickable drug information section
-                                                st.markdown("**💊 Click on any drug node above to see detailed information:**")
+                                                # Add clickable drug information section with buttons
+                                                st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
                                                 
-                                                # Create expandable sections for each drug
-                                                for drug in drugs_data:
-                                                    with st.expander(f"💊 **{drug['Drug Name']}** - {drug['Phase']} - {drug['MOA']}", expanded=False):
+                                                # Create a grid of clickable drug buttons
+                                                cols = st.columns(3)
+                                                for i, drug in enumerate(drugs_data):
+                                                    with cols[i % 3]:
+                                                        if st.button(f"💊 **{drug['Drug Name']}**", 
+                                                                   key=f"drug_btn_{drug['Drug Name']}_{target}_{selected_drug}",
+                                                                   help=f"Click to see details for {drug['Drug Name']}"):
+                                                            # Store selected drug in session state
+                                                            st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = drug['Drug Name']
+                                                
+                                                # Show details for selected drug
+                                                selected_drug_key = f'selected_drug_network_{target}_{selected_drug}'
+                                                if selected_drug_key in st.session_state:
+                                                    selected_drug_name = st.session_state[selected_drug_key]
+                                                    selected_drug_data = next((d for d in drugs_data if d['Drug Name'] == selected_drug_name), None)
+                                                    
+                                                    if selected_drug_data:
+                                                        st.markdown(f"### 💊 **Selected Drug: {selected_drug_name}**")
+                                                        
                                                         col1, col2 = st.columns(2)
                                                         
                                                         with col1:
                                                             st.markdown(f"**🎯 Target:** {target}")
-                                                            st.markdown(f"**🧬 Mechanism of Action:** {drug['MOA']}")
-                                                            st.markdown(f"**📊 Development Phase:** {drug['Phase']}")
-                                                            st.markdown(f"**✅ Classification Status:** {drug['Classified']}")
+                                                            st.markdown(f"**🧬 Mechanism of Action:** {selected_drug_data['MOA']}")
+                                                            st.markdown(f"**📊 Development Phase:** {selected_drug_data['Phase']}")
+                                                            st.markdown(f"**✅ Classification Status:** {selected_drug_data['Classified']}")
                                                         
                                                         with col2:
                                                             # Add action buttons
-                                                            if st.button(f"🔍 View Full Details", key=f"view_details_{drug['Drug Name']}_{target}"):
+                                                            if st.button(f"🔍 View Full Details", key=f"view_details_{selected_drug_name}_{target}_{selected_drug}"):
                                                                 st.info("💡 Use the main drug search to get comprehensive information about this drug")
                                                             
-                                                            if st.button(f"🔬 Classify Mechanism", key=f"classify_{drug['Drug Name']}_{target}"):
+                                                            if st.button(f"🔬 Classify Mechanism", key=f"classify_{selected_drug_name}_{target}_{selected_drug}"):
                                                                 st.info("💡 Use the 'Classify Mechanism' button in the main drug search for detailed classification")
+                                                            
+                                                            if st.button(f"❌ Clear Selection", key=f"clear_{selected_drug_name}_{target}_{selected_drug}"):
+                                                                if selected_drug_key in st.session_state:
+                                                                    del st.session_state[selected_drug_key]
+                                                                st.rerun()
                                                 
                                             except Exception as e:
                                                 st.info("Network visualization not available (missing dependencies)")
@@ -3797,29 +3818,50 @@ def show_target_search(app):
                             )
                             
                             # Display the interactive chart
-                            st.plotly_chart(fig, use_container_width=True)
+                            selected_points = st.plotly_chart(fig, use_container_width=True, key=f"main_network_chart_{selected_target}")
                             
-                            # Add clickable drug information section
-                            st.markdown("**💊 Click on any drug node above to see detailed information:**")
+                            # Add clickable drug information section with buttons
+                            st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
                             
-                            # Create expandable sections for each drug
-                            for drug in target_details['drugs']:
-                                with st.expander(f"💊 **{drug['drug_name']}** - {drug['drug_phase'] or 'Unknown'} - {drug['drug_moa'] or 'MOA not specified'}", expanded=False):
+                            # Create a grid of clickable drug buttons
+                            cols = st.columns(4)
+                            for i, drug in enumerate(target_details['drugs']):
+                                with cols[i % 4]:
+                                    if st.button(f"💊 **{drug['drug_name']}**", 
+                                               key=f"main_drug_btn_{drug['drug_name']}_{selected_target}",
+                                               help=f"Click to see details for {drug['drug_name']}"):
+                                        # Store selected drug in session state
+                                        st.session_state[f'selected_drug_main_network_{selected_target}'] = drug['drug_name']
+                            
+                            # Show details for selected drug
+                            selected_drug_key = f'selected_drug_main_network_{selected_target}'
+                            if selected_drug_key in st.session_state:
+                                selected_drug_name = st.session_state[selected_drug_key]
+                                selected_drug_data = next((d for d in target_details['drugs'] if d['drug_name'] == selected_drug_name), None)
+                                
+                                if selected_drug_data:
+                                    st.markdown(f"### 💊 **Selected Drug: {selected_drug_name}**")
+                                    
                                     col1, col2 = st.columns(2)
                                     
                                     with col1:
                                         st.markdown(f"**🎯 Target:** {selected_target}")
-                                        st.markdown(f"**🧬 Mechanism of Action:** {drug['drug_moa'] or 'Not specified'}")
-                                        st.markdown(f"**📊 Development Phase:** {drug['drug_phase'] or 'Unknown'}")
-                                        st.markdown(f"**✅ Classification Status:** {'Yes' if drug['is_classified'] else 'No'}")
+                                        st.markdown(f"**🧬 Mechanism of Action:** {selected_drug_data['drug_moa'] or 'Not specified'}")
+                                        st.markdown(f"**📊 Development Phase:** {selected_drug_data['drug_phase'] or 'Unknown'}")
+                                        st.markdown(f"**✅ Classification Status:** {'Yes' if selected_drug_data['is_classified'] else 'No'}")
                                     
                                     with col2:
                                         # Add action buttons
-                                        if st.button(f"🔍 View Full Details", key=f"view_details_main_{drug['drug_name']}_{selected_target}"):
+                                        if st.button(f"🔍 View Full Details", key=f"view_details_main_{selected_drug_name}_{selected_target}"):
                                             st.info("💡 Use the main drug search to get comprehensive information about this drug")
                                         
-                                        if st.button(f"🔬 Classify Mechanism", key=f"classify_main_{drug['drug_name']}_{selected_target}"):
+                                        if st.button(f"🔬 Classify Mechanism", key=f"classify_main_{selected_drug_name}_{selected_target}"):
                                             st.info("💡 Use the 'Classify Mechanism' button in the main drug search for detailed classification")
+                                        
+                                        if st.button(f"❌ Clear Selection", key=f"clear_main_{selected_drug_name}_{selected_target}"):
+                                            if selected_drug_key in st.session_state:
+                                                del st.session_state[selected_drug_key]
+                                            st.rerun()
                             
                         except Exception as e:
                             st.info("Network visualization not available (missing dependencies)")
