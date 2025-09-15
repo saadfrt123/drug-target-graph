@@ -2867,7 +2867,20 @@ def show_drug_search(app):
                                                 )
                                                 
                                                 # Display the interactive chart with click handling
-                                                selected_points = st.plotly_chart(fig, use_container_width=True, key=f"network_chart_{target}_{selected_drug}")
+                                                selected_points = st.plotly_chart(
+                                                    fig, 
+                                                    use_container_width=True, 
+                                                    key=f"network_chart_{target}_{selected_drug}",
+                                                    on_select="rerun"
+                                                )
+                                                
+                                                # Handle node selection from Plotly chart
+                                                if selected_points and selected_points.selection and selected_points.selection.points:
+                                                    clicked_point = selected_points.selection.points[0]
+                                                    if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
+                                                        clicked_drug = clicked_point.data.name
+                                                        if clicked_drug and clicked_drug != target:
+                                                            st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = clicked_drug
                                                 
                                                 # Add clickable drug information section with buttons
                                                 st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
@@ -3831,7 +3844,20 @@ def show_target_search(app):
                             )
                             
                             # Display the interactive chart with click handling
-                            selected_points = st.plotly_chart(fig, use_container_width=True, key=f"main_network_chart_{selected_target}")
+                            selected_points = st.plotly_chart(
+                                fig, 
+                                use_container_width=True, 
+                                key=f"main_network_chart_{selected_target}",
+                                on_select="rerun"
+                            )
+                            
+                            # Handle node selection from Plotly chart
+                            if selected_points and selected_points.selection and selected_points.selection.points:
+                                clicked_point = selected_points.selection.points[0]
+                                if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
+                                    clicked_drug = clicked_point.data.name
+                                    if clicked_drug and clicked_drug != selected_target:
+                                        st.session_state[f'selected_drug_main_network_{selected_target}'] = clicked_drug
                             
                             # Add clickable drug information section with buttons
                             st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
