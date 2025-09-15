@@ -1598,21 +1598,11 @@ def main():
         # Connection status
         st.sidebar.success("✅ Connected to Neo4j")
         
-        # Handle automatic navigation from clickable entities
-        if st.session_state.get('switch_to_target_search'):
-            page = "🎯 Search Targets"
-            st.session_state.switch_to_target_search = False
-        elif st.session_state.get('switch_to_moa_analysis'):
-            page = "🧬 MOA Analysis"
-            st.session_state.switch_to_moa_analysis = False
-        elif st.session_state.get('switch_to_drug_search'):
-            page = "🔍 Search Drugs"
-            st.session_state.switch_to_drug_search = False
-        else:
-            page = st.sidebar.selectbox(
-                "Choose a page:",
-                ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
-            )
+        # No more automatic navigation - everything is inline now
+        page = st.sidebar.selectbox(
+            "Choose a page:",
+            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
+        )
         
         try:
             if page == "🏠 Dashboard":
@@ -2205,13 +2195,8 @@ def show_drug_search(app):
         if st.button("Try: Metformin", help="Search for Metformin"):
             st.session_state.search_example = "metformin"
     
-    # Get search term from input, example, or navigation
+    # Get search term from input or example
     default_value = st.session_state.get('search_example', '')
-    if st.session_state.get('drug_to_view'):
-        default_value = st.session_state.drug_to_view
-        st.success(f"🔍 **Navigated from target search** - Showing details for drug: **{default_value}**")
-        # Clear the drug_to_view after using it
-        st.session_state.drug_to_view = None
     
     search_term = st.text_input("Enter drug name or partial name:", value=default_value, help="You can search for full names or just part of a drug name")
     
@@ -2688,12 +2673,58 @@ def show_drug_search(app):
                     with col1:
                         st.markdown(f"**Target:** {target}")
                         
-                        # Add clickable button to view target details
-                        if st.button(f"🔍 **View {target} Details**", key=f"view_target_{target}_{selected_drug}"):
-                            # Store the target to view in session state
-                            st.session_state.target_to_view = target
-                            st.session_state.switch_to_target_search = True
-                            st.rerun()
+                        # Add inline target details display
+                        if st.button(f"🔍 **Show Drugs Targeting {target}**", key=f"show_target_drugs_{target}_{selected_drug}"):
+                            # Show drugs targeting this target inline
+                            with st.spinner(f"Loading drugs targeting {target}..."):
+                                try:
+                                    target_details = app.get_target_details(target)
+                                    if target_details and target_details['drugs']:
+                                        st.markdown(f"**🎯 Drugs Targeting {target}:**")
+                                        
+                                        # Create a nice display of drugs targeting this target
+                                        drugs_data = []
+                                        for drug in target_details['drugs'][:10]:  # Show top 10
+                                            drugs_data.append({
+                                                'Drug Name': drug['drug_name'],
+                                                'MOA': drug['drug_moa'] or 'Not specified',
+                                                'Phase': drug['drug_phase'] or 'Unknown',
+                                                'Classified': '✅ Yes' if drug['is_classified'] else '⏳ No'
+                                            })
+                                        
+                                        if drugs_data:
+                                            drugs_df = pd.DataFrame(drugs_data)
+                                            st.dataframe(drugs_df, use_container_width=True, hide_index=True)
+                                            
+                                            if len(target_details['drugs']) > 10:
+                                                st.info(f"Showing top 10 of {len(target_details['drugs'])} drugs targeting {target}")
+                                        
+                                        # Add classification button for this target
+                                        unclassified_count = len([d for d in target_details['drugs'] if not d['is_classified']])
+                                        if unclassified_count > 0 and app.classifier:
+                                            if st.button(f"🔬 Classify All {unclassified_count} Unclassified Drugs for {target}", key=f"classify_all_{target}_{selected_drug}"):
+                                                with st.spinner(f"Classifying {unclassified_count} drugs for {target}..."):
+                                                    success_count = 0
+                                                    error_count = 0
+                                                    
+                                                    for drug in target_details['drugs']:
+                                                        if not drug['is_classified']:
+                                                            try:
+                                                                classification = app.get_drug_target_classification(drug['drug_name'], target)
+                                                                if classification:
+                                                                    success_count += 1
+                                                                else:
+                                                                    error_count += 1
+                                                            except Exception as e:
+                                                                error_count += 1
+                                                    
+                                                    st.success(f"✅ Classified {success_count} drugs for {target}")
+                                                    if error_count > 0:
+                                                        st.warning(f"⚠️ {error_count} drugs failed to classify")
+                                    else:
+                                        st.info(f"No drugs found targeting {target}")
+                                except Exception as e:
+                                    st.error(f"Error loading target details: {e}")
                         
                         # Check for existing classification
                         if app.classifier:
@@ -3237,15 +3268,8 @@ def show_target_search(app):
         if st.button("Try: EGFR", help="Epidermal growth factor receptor"):
             st.session_state.target_search_example = "EGFR"
     
-    # Get search term from input, example, or navigation
+    # Get search term from input or example
     default_target_value = st.session_state.get('target_search_example', '')
-    if st.session_state.get('target_to_view'):
-        default_target_value = st.session_state.target_to_view
-        st.success(f"🔍 **Navigated from drug search** - Showing details for target: **{default_target_value}**")
-        # Clear the target_to_view after using it
-        st.session_state.target_to_view = None
-        
-        # Navigation handled inline - no need for breadcrumbs
     
     search_term = st.text_input("Enter target name or partial name:", value=default_target_value, help="Search for protein names, receptor names, or enzyme names")
     
@@ -3334,8 +3358,8 @@ def show_target_search(app):
                                     if error_count > 0:
                                         st.warning(f"⚠️ {error_count} drugs failed to classify")
                                     
-                                    st.info("🔄 Refreshing page to show updated classifications...")
-                                    st.rerun()
+                                    st.info("✅ Classification complete! The results are shown above.")
+                                    # Don't rerun - let the user see the results in the current view
                     
                     if target_details['drugs']:
                         # Show a simple table first with better styling
@@ -3921,26 +3945,18 @@ def show_moa_analysis(app):
     # MOA Search Section
     st.subheader("🔍 Search by Mechanism of Action")
     
-    # Handle automatic navigation from drug search
-    if st.session_state.get('moa_to_search'):
-        moa_search = st.session_state.moa_to_search
-        st.success(f"🔍 **Navigated from drug search** - Searching for MOA: **{moa_search}**")
-        # Clear the moa_to_search after using it
-        st.session_state.moa_to_search = None
-        
-        # Navigation handled inline - no need for breadcrumbs
-    else:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            moa_search = st.text_input("Enter mechanism keywords (e.g., 'kinase inhibitor', 'receptor agonist'):")
-        with col2:
-            st.markdown("**Examples:**")
-            if st.button("🧪 Try: kinase inhibitor"):
-                st.session_state.moa_search = "kinase inhibitor"
-            if st.button("🎯 Try: receptor antagonist"):
-                st.session_state.moa_search = "receptor antagonist"
-            if st.button("🔬 Try: enzyme inhibitor"):
-                st.session_state.moa_search = "enzyme inhibitor"
+    # MOA search functionality
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        moa_search = st.text_input("Enter mechanism keywords (e.g., 'kinase inhibitor', 'receptor agonist'):")
+    with col2:
+        st.markdown("**Examples:**")
+        if st.button("🧪 Try: kinase inhibitor"):
+            st.session_state.moa_search = "kinase inhibitor"
+        if st.button("🎯 Try: receptor antagonist"):
+            st.session_state.moa_search = "receptor antagonist"
+        if st.button("🔬 Try: enzyme inhibitor"):
+            st.session_state.moa_search = "enzyme inhibitor"
     
     # Use session state if available
     if 'moa_search' in st.session_state:
