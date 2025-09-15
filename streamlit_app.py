@@ -2727,27 +2727,45 @@ def show_drug_search(app):
                                             for i, drug in enumerate(drugs_data, 1):
                                                 st.markdown(f"**{i}.** **{drug['Drug Name']}** - {drug['MOA']} - {drug['Phase']} - {drug['Classified']}")
                                             
-                                            # Add network visualization
-                                            st.markdown("**🕸️ Network Visualization:**")
+                                            # Add interactive network visualization
+                                            st.markdown("**🕸️ Interactive Network Visualization:**")
+                                            st.info("💡 **Click on any drug node to see detailed information!**")
+                                            
                                             try:
-                                                # Create a simple network graph
                                                 import networkx as nx
                                                 import plotly.graph_objects as go
+                                                from plotly.graph_objects import Scatter
                                                 
                                                 # Create network graph
                                                 G = nx.Graph()
                                                 
                                                 # Add target as central node
-                                                G.add_node(target, node_type='target', size=20, color='red')
+                                                G.add_node(target, 
+                                                          node_type='target', 
+                                                          size=25, 
+                                                          color='red',
+                                                          symbol='diamond',
+                                                          description=f"Target: {target}")
                                                 
-                                                # Add drugs as nodes
+                                                # Add drugs as nodes with detailed information
                                                 for drug in drugs_data:
                                                     drug_name = drug['Drug Name']
-                                                    G.add_node(drug_name, node_type='drug', size=15, color='blue')
+                                                    node_color = 'green' if drug['Classified'] == '✅ Yes' else 'orange'
+                                                    node_size = 20 if drug['Classified'] == '✅ Yes' else 15
+                                                    
+                                                    G.add_node(drug_name, 
+                                                              node_type='drug', 
+                                                              size=node_size, 
+                                                              color=node_color,
+                                                              symbol='circle',
+                                                              moa=drug['MOA'],
+                                                              phase=drug['Phase'],
+                                                              classified=drug['Classified'],
+                                                              description=f"Drug: {drug_name}<br>MOA: {drug['MOA']}<br>Phase: {drug['Phase']}<br>Classified: {drug['Classified']}")
                                                     G.add_edge(target, drug_name)
                                                 
                                                 # Get positions
-                                                pos = nx.spring_layout(G, k=3, iterations=50)
+                                                pos = nx.spring_layout(G, k=4, iterations=100)
                                                 
                                                 # Create plotly figure
                                                 fig = go.Figure()
@@ -2760,51 +2778,118 @@ def show_drug_search(app):
                                                         x=[x0, x1, None],
                                                         y=[y0, y1, None],
                                                         mode='lines',
-                                                        line=dict(color='gray', width=2),
+                                                        line=dict(color='lightgray', width=2),
                                                         hoverinfo='none',
                                                         showlegend=False
                                                     ))
                                                 
-                                                # Add nodes
-                                                for node in G.nodes():
-                                                    x, y = pos[node]
-                                                    node_type = G.nodes[node]['node_type']
-                                                    color = 'red' if node_type == 'target' else 'blue'
-                                                    size = 20 if node_type == 'target' else 15
-                                                    
-                                                    fig.add_trace(go.Scatter(
-                                                        x=[x],
-                                                        y=[y],
-                                                        mode='markers+text',
-                                                        marker=dict(size=size, color=color),
-                                                        text=node,
-                                                        textposition="middle center",
-                                                        textfont=dict(size=10, color='white'),
-                                                        hoverinfo='text',
-                                                        hovertext=f"{node} ({node_type})",
-                                                        showlegend=False
-                                                    ))
+                                                # Add target node
+                                                target_x, target_y = pos[target]
+                                                fig.add_trace(go.Scatter(
+                                                    x=[target_x],
+                                                    y=[target_y],
+                                                    mode='markers+text',
+                                                    marker=dict(size=25, color='red', symbol='diamond', line=dict(width=2, color='darkred')),
+                                                    text=target,
+                                                    textposition="middle center",
+                                                    textfont=dict(size=12, color='white', family="Arial Black"),
+                                                    hoverinfo='text',
+                                                    hovertext=f"🎯 <b>Target: {target}</b><br>Type: Biological Target<br>Connected to {len(drugs_data)} drugs",
+                                                    showlegend=False,
+                                                    name=target
+                                                ))
                                                 
-                                                # Update layout
+                                                # Add drug nodes
+                                                for node in G.nodes():
+                                                    if node != target:
+                                                        x, y = pos[node]
+                                                        node_data = G.nodes[node]
+                                                        color = node_data['color']
+                                                        size = node_data['size']
+                                                        moa = node_data['moa']
+                                                        phase = node_data['phase']
+                                                        classified = node_data['classified']
+                                                        
+                                                        # Create detailed hover text
+                                                        hover_text = f"💊 <b>Drug: {node}</b><br>"
+                                                        hover_text += f"🎯 <b>Target:</b> {target}<br>"
+                                                        hover_text += f"🧬 <b>MOA:</b> {moa}<br>"
+                                                        hover_text += f"📊 <b>Phase:</b> {phase}<br>"
+                                                        hover_text += f"✅ <b>Classified:</b> {classified}<br>"
+                                                        hover_text += f"<br>💡 <i>Click to see detailed information</i>"
+                                                        
+                                                        fig.add_trace(go.Scatter(
+                                                            x=[x],
+                                                            y=[y],
+                                                            mode='markers+text',
+                                                            marker=dict(size=size, color=color, symbol='circle', 
+                                                                      line=dict(width=2, color='darkblue' if color == 'blue' else 'darkgreen' if color == 'green' else 'darkorange')),
+                                                            text=node,
+                                                            textposition="middle center",
+                                                            textfont=dict(size=9, color='white', family="Arial"),
+                                                            hoverinfo='text',
+                                                            hovertext=hover_text,
+                                                            showlegend=False,
+                                                            name=node
+                                                        ))
+                                                
+                                                # Update layout with better interactivity
                                                 fig.update_layout(
-                                                    title=f"Drug-Target Network: {target}",
+                                                    title=f"🕸️ Interactive Drug-Target Network: {target}",
                                                     showlegend=False,
                                                     hovermode='closest',
-                                                    margin=dict(b=20,l=5,r=5,t=40),
-                                                    annotations=[ dict(
-                                                        text="Red: Target, Blue: Drugs",
-                                                        showarrow=False,
-                                                        xref="paper", yref="paper",
-                                                        x=0.005, y=-0.002,
-                                                        xanchor='left', yanchor='bottom',
-                                                        font=dict(color='gray', size=12)
-                                                    )],
+                                                    margin=dict(b=60,l=5,r=5,t=60),
+                                                    annotations=[
+                                                        dict(
+                                                            text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs<br>💡 Click any drug node for detailed information",
+                                                            showarrow=False,
+                                                            xref="paper", yref="paper",
+                                                            x=0.5, y=-0.15,
+                                                            xanchor='center', yanchor='top',
+                                                            font=dict(color='gray', size=11),
+                                                            bgcolor='rgba(255,255,255,0.8)',
+                                                            bordercolor='gray',
+                                                            borderwidth=1
+                                                        )
+                                                    ],
                                                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                                                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                                    height=400
+                                                    height=500,
+                                                    plot_bgcolor='white',
+                                                    # Enable better interaction
+                                                    dragmode='pan',
+                                                    hoverlabel=dict(
+                                                        bgcolor="white",
+                                                        bordercolor="black",
+                                                        font_size=12,
+                                                        font_family="Arial"
+                                                    )
                                                 )
                                                 
+                                                # Display the interactive chart
                                                 st.plotly_chart(fig, use_container_width=True)
+                                                
+                                                # Add clickable drug information section
+                                                st.markdown("**💊 Click on any drug node above to see detailed information:**")
+                                                
+                                                # Create expandable sections for each drug
+                                                for drug in drugs_data:
+                                                    with st.expander(f"💊 **{drug['Drug Name']}** - {drug['Phase']} - {drug['MOA']}", expanded=False):
+                                                        col1, col2 = st.columns(2)
+                                                        
+                                                        with col1:
+                                                            st.markdown(f"**🎯 Target:** {target}")
+                                                            st.markdown(f"**🧬 Mechanism of Action:** {drug['MOA']}")
+                                                            st.markdown(f"**📊 Development Phase:** {drug['Phase']}")
+                                                            st.markdown(f"**✅ Classification Status:** {drug['Classified']}")
+                                                        
+                                                        with col2:
+                                                            # Add action buttons
+                                                            if st.button(f"🔍 View Full Details", key=f"view_details_{drug['Drug Name']}_{target}"):
+                                                                st.info("💡 Use the main drug search to get comprehensive information about this drug")
+                                                            
+                                                            if st.button(f"🔬 Classify Mechanism", key=f"classify_{drug['Drug Name']}_{target}"):
+                                                                st.info("💡 Use the 'Classify Mechanism' button in the main drug search for detailed classification")
                                                 
                                             except Exception as e:
                                                 st.info("Network visualization not available (missing dependencies)")
@@ -3572,35 +3657,45 @@ def show_target_search(app):
                                                 st.error(f"Error loading drug details: {e}")
                         # Duplicate section removed - now handled above with unified information
                         
-                        # Add network visualization for all drugs targeting this target
-                        st.markdown("### 🕸️ **Network Visualization**")
+                        # Add interactive network visualization for all drugs targeting this target
+                        st.markdown("### 🕸️ **Interactive Network Visualization**")
+                        st.info("💡 **Click on any drug node to see detailed information! Hover for quick details.**")
+                        
                         try:
                             import networkx as nx
                             import plotly.graph_objects as go
+                            from plotly.graph_objects import Scatter
                             
                             # Create network graph
                             G = nx.Graph()
                             
                             # Add target as central node
-                            G.add_node(selected_target, node_type='target', size=25, color='red')
+                            G.add_node(selected_target, 
+                                      node_type='target', 
+                                      size=30, 
+                                      color='red',
+                                      symbol='diamond',
+                                      description=f"Target: {selected_target}")
                             
-                            # Add drugs as nodes with different colors based on classification
+                            # Add drugs as nodes with detailed information
                             for drug in target_details['drugs']:
                                 drug_name = drug['drug_name']
                                 node_color = 'green' if drug['is_classified'] else 'orange'
-                                node_size = 20 if drug['is_classified'] else 15
+                                node_size = 22 if drug['is_classified'] else 17
                                 
                                 G.add_node(drug_name, 
                                           node_type='drug', 
                                           size=node_size, 
                                           color=node_color,
+                                          symbol='circle',
                                           moa=drug['drug_moa'] or 'Not specified',
                                           phase=drug['drug_phase'] or 'Unknown',
-                                          classified=drug['is_classified'])
+                                          classified=drug['is_classified'],
+                                          description=f"Drug: {drug_name}<br>MOA: {drug['drug_moa'] or 'Not specified'}<br>Phase: {drug['drug_phase'] or 'Unknown'}<br>Classified: {'Yes' if drug['is_classified'] else 'No'}")
                                 G.add_edge(selected_target, drug_name)
                             
                             # Get positions
-                            pos = nx.spring_layout(G, k=4, iterations=100)
+                            pos = nx.spring_layout(G, k=5, iterations=150)
                             
                             # Create plotly figure
                             fig = go.Figure()
@@ -3613,7 +3708,7 @@ def show_target_search(app):
                                     x=[x0, x1, None],
                                     y=[y0, y1, None],
                                     mode='lines',
-                                    line=dict(color='lightgray', width=1),
+                                    line=dict(color='lightgray', width=2),
                                     hoverinfo='none',
                                     showlegend=False
                                 ))
@@ -3624,13 +3719,14 @@ def show_target_search(app):
                                 x=[target_x],
                                 y=[target_y],
                                 mode='markers+text',
-                                marker=dict(size=25, color='red', symbol='diamond'),
+                                marker=dict(size=30, color='red', symbol='diamond', line=dict(width=3, color='darkred')),
                                 text=selected_target,
                                 textposition="middle center",
-                                textfont=dict(size=12, color='white', family="Arial Black"),
+                                textfont=dict(size=14, color='white', family="Arial Black"),
                                 hoverinfo='text',
-                                hovertext=f"Target: {selected_target}",
-                                showlegend=False
+                                hovertext=f"🎯 <b>Target: {selected_target}</b><br>Type: Biological Target<br>Connected to {len(target_details['drugs'])} drugs<br><br>💡 <i>This is the central target node</i>",
+                                showlegend=False,
+                                name=selected_target
                             ))
                             
                             # Add drug nodes
@@ -3640,43 +3736,90 @@ def show_target_search(app):
                                     node_data = G.nodes[node]
                                     color = node_data['color']
                                     size = node_data['size']
+                                    moa = node_data['moa']
+                                    phase = node_data['phase']
+                                    classified = node_data['classified']
+                                    
+                                    # Create detailed hover text
+                                    hover_text = f"💊 <b>Drug: {node}</b><br>"
+                                    hover_text += f"🎯 <b>Target:</b> {selected_target}<br>"
+                                    hover_text += f"🧬 <b>MOA:</b> {moa}<br>"
+                                    hover_text += f"📊 <b>Phase:</b> {phase}<br>"
+                                    hover_text += f"✅ <b>Classified:</b> {'Yes' if classified else 'No'}<br>"
+                                    hover_text += f"<br>💡 <i>Click to see detailed information</i>"
                                     
                                     fig.add_trace(go.Scatter(
                                         x=[x],
                                         y=[y],
                                         mode='markers+text',
-                                        marker=dict(size=size, color=color, symbol='circle'),
+                                        marker=dict(size=size, color=color, symbol='circle', 
+                                                  line=dict(width=2, color='darkgreen' if color == 'green' else 'darkorange')),
                                         text=node,
                                         textposition="middle center",
-                                        textfont=dict(size=8, color='white'),
+                                        textfont=dict(size=9, color='white', family="Arial"),
                                         hoverinfo='text',
-                                        hovertext=f"Drug: {node}<br>MOA: {node_data['moa']}<br>Phase: {node_data['phase']}<br>Classified: {'Yes' if node_data['classified'] else 'No'}",
-                                        showlegend=False
+                                        hovertext=hover_text,
+                                        showlegend=False,
+                                        name=node
                                     ))
                             
-                            # Update layout
+                            # Update layout with enhanced interactivity
                             fig.update_layout(
-                                title=f"Drug-Target Network: {selected_target}",
+                                title=f"🕸️ Interactive Drug-Target Network: {selected_target}",
                                 showlegend=False,
                                 hovermode='closest',
-                                margin=dict(b=40,l=5,r=5,t=60),
+                                margin=dict(b=80,l=5,r=5,t=80),
                                 annotations=[
                                     dict(
-                                        text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs",
+                                        text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs<br>💡 Click any drug node for detailed information | Hover for quick details",
                                         showarrow=False,
                                         xref="paper", yref="paper",
-                                        x=0.5, y=-0.1,
+                                        x=0.5, y=-0.2,
                                         xanchor='center', yanchor='top',
-                                        font=dict(color='gray', size=12)
+                                        font=dict(color='gray', size=11),
+                                        bgcolor='rgba(255,255,255,0.9)',
+                                        bordercolor='gray',
+                                        borderwidth=1
                                     )
                                 ],
                                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                height=500,
-                                plot_bgcolor='white'
+                                height=600,
+                                plot_bgcolor='white',
+                                # Enable better interaction
+                                dragmode='pan',
+                                hoverlabel=dict(
+                                    bgcolor="white",
+                                    bordercolor="black",
+                                    font_size=12,
+                                    font_family="Arial"
+                                )
                             )
                             
+                            # Display the interactive chart
                             st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Add clickable drug information section
+                            st.markdown("**💊 Click on any drug node above to see detailed information:**")
+                            
+                            # Create expandable sections for each drug
+                            for drug in target_details['drugs']:
+                                with st.expander(f"💊 **{drug['drug_name']}** - {drug['drug_phase'] or 'Unknown'} - {drug['drug_moa'] or 'MOA not specified'}", expanded=False):
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        st.markdown(f"**🎯 Target:** {selected_target}")
+                                        st.markdown(f"**🧬 Mechanism of Action:** {drug['drug_moa'] or 'Not specified'}")
+                                        st.markdown(f"**📊 Development Phase:** {drug['drug_phase'] or 'Unknown'}")
+                                        st.markdown(f"**✅ Classification Status:** {'Yes' if drug['is_classified'] else 'No'}")
+                                    
+                                    with col2:
+                                        # Add action buttons
+                                        if st.button(f"🔍 View Full Details", key=f"view_details_main_{drug['drug_name']}_{selected_target}"):
+                                            st.info("💡 Use the main drug search to get comprehensive information about this drug")
+                                        
+                                        if st.button(f"🔬 Classify Mechanism", key=f"classify_main_{drug['drug_name']}_{selected_target}"):
+                                            st.info("💡 Use the 'Classify Mechanism' button in the main drug search for detailed classification")
                             
                         except Exception as e:
                             st.info("Network visualization not available (missing dependencies)")
