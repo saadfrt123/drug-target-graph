@@ -3245,16 +3245,7 @@ def show_target_search(app):
         # Clear the target_to_view after using it
         st.session_state.target_to_view = None
         
-        # Add breadcrumb navigation
-        st.markdown("---")
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("← Back to Drug Search", help="Return to drug search"):
-                st.session_state.switch_to_drug_search = True
-                st.rerun()
-        with col2:
-            st.markdown("**Navigation:** Drug Search → Target Details")
-        st.markdown("---")
+        # Navigation handled inline - no need for breadcrumbs
     
     search_term = st.text_input("Enter target name or partial name:", value=default_target_value, help="Search for protein names, receptor names, or enzyme names")
     
@@ -3361,85 +3352,88 @@ def show_target_search(app):
                             # Add some styling to make the table more visible
                             st.markdown("### 📋 **Drugs Table**")
                             st.markdown("**Found drugs targeting this target:**")
-                            st.info("💡 **Click on drug names to see detailed information, or click on MOAs to find similar drugs**")
+                            st.info("💡 **Expand any drug to see detailed information, classify mechanisms, and find related drugs - all in one place!**")
                             
-                            # Display drugs with clickable elements
+                            # Display drugs with inline expandable information
                             for i, drug in enumerate(target_details['drugs']):
-                                col1, col2, col3, col4 = st.columns([3, 2, 1, 1])
-                                
-                                with col1:
-                                    # Clickable drug name
-                                    if st.button(f"💊 **{drug['drug_name']}**", key=f"drug_btn_{drug['drug_name']}_{selected_target}_{i}"):
-                                        st.session_state.drug_to_view = drug['drug_name']
-                                        st.session_state.switch_to_drug_search = True
-                                        st.rerun()
-                                
-                                with col2:
-                                    # Clickable MOA
+                                # Create expandable section for each drug
+                                with st.expander(f"💊 **{drug['drug_name']}** - {drug['drug_phase'] or 'Unknown'} - {drug['drug_moa'] or 'MOA not specified'}", expanded=False):
+                                    
+                                    # Drug basic info
+                                    col1, col2, col3 = st.columns([2, 1, 1])
+                                    with col1:
+                                        st.markdown(f"**Drug Name:** {drug['drug_name']}")
+                                        st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
+                                    with col2:
+                                        st.markdown(f"**Classification:** {'✅ Classified' if drug['is_classified'] else '⏳ Unclassified'}")
+                                    with col3:
+                                        if not drug['is_classified'] and app.classifier:
+                                            if st.button(f"🔬 Classify", key=f"classify_{drug['drug_name']}_{selected_target}_{i}"):
+                                                with st.spinner(f"Classifying {drug['drug_name']} → {selected_target}..."):
+                                                    try:
+                                                        classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
+                                                        if classification:
+                                                            st.success(f"✅ Classified: {classification}")
+                                                        else:
+                                                            st.warning("⚠️ Classification failed")
+                                                    except Exception as e:
+                                                        st.error(f"❌ Error: {e}")
+                                    
+                                    # MOA information
                                     moa = drug['drug_moa'] or 'Not specified'
                                     if moa != 'Not specified':
-                                        if st.button(f"🔬 **{moa}**", key=f"moa_btn_{moa}_{drug['drug_name']}_{i}"):
-                                            st.session_state.moa_to_search = moa
-                                            st.session_state.switch_to_moa_analysis = True
-                                            st.rerun()
+                                        st.markdown(f"**Mechanism of Action:** {moa}")
+                                        
+                                        # Show other drugs with same MOA
+                                        if st.button(f"🔍 Find other drugs with MOA: {moa}", key=f"find_moa_{moa}_{drug['drug_name']}_{i}"):
+                                            with st.spinner(f"Finding drugs with MOA: {moa}..."):
+                                                try:
+                                                    moa_drugs = app.search_drugs_by_moa(moa, 20)
+                                                    if moa_drugs:
+                                                        st.markdown(f"**Other drugs with MOA '{moa}':**")
+                                                        for moa_drug in moa_drugs[:10]:  # Show top 10
+                                                            st.markdown(f"• {moa_drug['drug_name']} ({moa_drug['drug_phase'] or 'Unknown'})")
+                                                        if len(moa_drugs) > 10:
+                                                            st.info(f"... and {len(moa_drugs) - 10} more drugs")
+                                                    else:
+                                                        st.info(f"No other drugs found with MOA: {moa}")
+                                                except Exception as e:
+                                                    st.error(f"Error searching MOA: {e}")
                                     else:
-                                        st.text("Not specified")
-                                
-                                with col3:
-                                    st.text(drug['drug_phase'] or 'Unknown')
-                                
-                                with col4:
-                                    status = '✅ Yes' if drug['is_classified'] else '⏳ No'
-                                    st.text(status)
-                        # Enhanced display with mechanism details
-                        for drug in target_details['drugs']:
-                            with st.expander(f"💊 **{drug['drug_name']}** ({drug['drug_phase']}) - Click for mechanism details"):
-                                
-                                col1, col2 = st.columns([2, 1])
-                                
-                                with col1:
-                                    st.markdown(f"**Drug:** {drug['drug_name']}")
-                                    st.markdown(f"**MOA:** {drug['drug_moa'] or 'Not specified'}")
-                                    st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
+                                        st.markdown("**Mechanism of Action:** Not specified")
                                     
-                                    # Show mechanism classification if available
-                                    if drug['is_classified']:
-                                        st.success("✅ **Mechanism Classification Available:**")
-                                        
-                                        # Display classification details
-                                        mech_col1, mech_col2 = st.columns(2)
-                                        with mech_col1:
-                                            st.metric("🔗 Relationship", drug['relationship_type'] or 'Unknown')
-                                            st.metric("🧬 Target Class", drug['target_class'] or 'Unknown')
-                                        with mech_col2:
-                                            st.metric("⚙️ Mechanism", drug['mechanism'] or 'Unknown')
-                                            confidence = drug['confidence']
-                                            conf_display = f"{confidence:.1%}" if confidence else "N/A"
-                                            st.metric("🎯 Confidence", conf_display)
-                                        
-                                        # Scientific reasoning
-                                        if drug['reasoning']:
-                                            st.markdown("**📝 Scientific Reasoning**")
-                                            st.write(drug['reasoning'])
-                                    else:
-                                        st.info("ℹ️ No mechanism classification available yet")
-                                
-                                with col2:
-                                    # Classification action button
-                                    if app.classifier and not drug['is_classified']:
-                                        if st.button(f"🔬 Classify", key=f"classify_target_{drug['drug_name']}_{selected_target}"):
-                                            with st.spinner(f"Classifying {drug['drug_name']} → {selected_target}..."):
-                                                classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
+                                    # Drug details section
+                                    if st.button(f"📋 Show detailed information for {drug['drug_name']}", key=f"details_{drug['drug_name']}_{selected_target}_{i}"):
+                                        with st.spinner(f"Loading details for {drug['drug_name']}..."):
+                                            try:
+                                                # Get detailed drug information
+                                                drug_details = app.get_drug_details(drug['drug_name'])
+                                                if drug_details:
+                                                    st.markdown("**📋 Detailed Drug Information:**")
+                                                    
+                                                    # Basic info
+                                                    col1, col2 = st.columns(2)
+                                                    with col1:
+                                                        st.markdown(f"**Drug Name:** {drug_details.get('drug_name', 'N/A')}")
+                                                        st.markdown(f"**Phase:** {drug_details.get('drug_phase', 'Unknown')}")
+                                                        st.markdown(f"**MOA:** {drug_details.get('drug_moa', 'Not specified')}")
+                                                    with col2:
+                                                        st.markdown(f"**Indication:** {drug_details.get('indication', 'Not specified')}")
+                                                        st.markdown(f"**Therapeutic Class:** {drug_details.get('therapeutic_class', 'Not specified')}")
+                                                    
+                                                    # Targets
+                                                    if drug_details.get('targets'):
+                                                        st.markdown("**🎯 All Targets:**")
+                                                        for target in drug_details['targets'][:5]:  # Show top 5
+                                                            st.markdown(f"• {target}")
+                                                        if len(drug_details['targets']) > 5:
+                                                            st.info(f"... and {len(drug_details['targets']) - 5} more targets")
                                                 
-                                                if classification:
-                                                    st.success("✅ Classification completed!")
-                                                    st.rerun()
                                                 else:
-                                                    st.error("❌ Classification failed")
-                                    elif app.classifier and drug['is_classified']:
-                                        st.success("✅ Already classified")
-                                    else:
-                                        st.info("🔧 Set GEMINI_API_KEY to classify")
+                                                    st.info("No detailed information available for this drug")
+                                            except Exception as e:
+                                                st.error(f"Error loading drug details: {e}")
+                        # Duplicate section removed - now handled above with unified information
                         
                         # Summary Statistics and Visualizations
                         st.markdown("### 📈 **Drug Analysis Summary**")
@@ -3934,16 +3928,7 @@ def show_moa_analysis(app):
         # Clear the moa_to_search after using it
         st.session_state.moa_to_search = None
         
-        # Add breadcrumb navigation
-        st.markdown("---")
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button("← Back to Drug Search", help="Return to drug search"):
-                st.session_state.switch_to_drug_search = True
-                st.rerun()
-        with col2:
-            st.markdown("**Navigation:** Drug Search → MOA Analysis")
-        st.markdown("---")
+        # Navigation handled inline - no need for breadcrumbs
     else:
         col1, col2 = st.columns([2, 1])
         with col1:
