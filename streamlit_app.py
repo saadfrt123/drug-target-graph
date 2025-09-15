@@ -650,17 +650,10 @@ class DrugTargetGraphApp:
                         from neo4j import GraphDatabase, basic_auth
                         import time
                         
-                        # Configuration for Aura connections (no encryption settings for neo4j+s://)
-                        config = {
-                            "max_connection_lifetime": 30,
-                            "max_connection_pool_size": 50,
-                            "connection_acquisition_timeout": 60
-                        }
-                        
                         if "neo4j+s://" in uri:
                             st.info("🔄 Establishing secure connection to Neo4j Aura...")
                             time.sleep(2)  # Brief delay for Aura
-                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password), **config)
+                            test_driver = GraphDatabase.driver(uri, auth=basic_auth(user, password))
                         else:
                             test_driver = GraphDatabase.driver(uri, auth=(user, password))
                         
@@ -1605,10 +1598,18 @@ def main():
         # Connection status
         st.sidebar.success("✅ Connected to Neo4j")
         
-        page = st.sidebar.selectbox(
-            "Choose a page:",
-            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
-        )
+        # Handle automatic navigation from clickable entities
+        if st.session_state.get('switch_to_target_search'):
+            page = "🎯 Search Targets"
+            st.session_state.switch_to_target_search = False
+        elif st.session_state.get('switch_to_moa_analysis'):
+            page = "🧬 MOA Analysis"
+            st.session_state.switch_to_moa_analysis = False
+        else:
+            page = st.sidebar.selectbox(
+                "Choose a page:",
+                ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
+            )
         
         try:
             if page == "🏠 Dashboard":
@@ -2287,6 +2288,14 @@ def show_drug_search(app):
                     moa = drug_details['drug_info']['moa'] or 'Not specified'
                     st.info(f"**{moa}**")
                     
+                    # Add clickable button to search for other drugs with same MOA
+                    if moa != 'Not specified':
+                        if st.button(f"🔍 **Find Other Drugs with MOA: {moa}**", key=f"search_moa_{moa}_{selected_drug}"):
+                            # Store the MOA to search in session state
+                            st.session_state.moa_to_search = moa
+                            st.session_state.switch_to_moa_analysis = True
+                            st.rerun()
+                    
                     # Chemical Structure
                     if drug_details['drug_info']['smiles'] and drug_details['drug_info']['smiles'] != 'N/A':
                         st.markdown("### 🧪 **Chemical Structure**")
@@ -2651,6 +2660,7 @@ def show_drug_search(app):
             
             # Display targets with expanders for clean organization
             st.markdown("### 🎯 **Biological Targets**")
+            st.info("💡 **Click on any target name to see detailed information about that protein/receptor**")
             
             # Show targets in expandable sections
             for target in drug_details['targets']:
@@ -2668,6 +2678,13 @@ def show_drug_search(app):
                     
                     with col1:
                         st.markdown(f"**Target:** {target}")
+                        
+                        # Add clickable button to view target details
+                        if st.button(f"🔍 **View {target} Details**", key=f"view_target_{target}_{selected_drug}"):
+                            # Store the target to view in session state
+                            st.session_state.target_to_view = target
+                            st.session_state.switch_to_target_search = True
+                            st.rerun()
                         
                         # Check for existing classification
                         if app.classifier:
@@ -3211,8 +3228,14 @@ def show_target_search(app):
         if st.button("Try: EGFR", help="Epidermal growth factor receptor"):
             st.session_state.target_search_example = "EGFR"
     
-    # Get search term from input or example
+    # Get search term from input, example, or navigation
     default_target_value = st.session_state.get('target_search_example', '')
+    if st.session_state.get('target_to_view'):
+        default_target_value = st.session_state.target_to_view
+        st.success(f"🔍 **Navigated from drug search** - Showing details for target: **{default_target_value}**")
+        # Clear the target_to_view after using it
+        st.session_state.target_to_view = None
+    
     search_term = st.text_input("Enter target name or partial name:", value=default_target_value, help="Search for protein names, receptor names, or enzyme names")
     
     if search_term:
@@ -3859,17 +3882,24 @@ def show_moa_analysis(app):
     # MOA Search Section
     st.subheader("🔍 Search by Mechanism of Action")
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        moa_search = st.text_input("Enter mechanism keywords (e.g., 'kinase inhibitor', 'receptor agonist'):")
-    with col2:
-        st.markdown("**Examples:**")
-        if st.button("🧪 Try: kinase inhibitor"):
-            st.session_state.moa_search = "kinase inhibitor"
-        if st.button("🎯 Try: receptor antagonist"):
-            st.session_state.moa_search = "receptor antagonist"
-        if st.button("🔬 Try: enzyme inhibitor"):
-            st.session_state.moa_search = "enzyme inhibitor"
+    # Handle automatic navigation from drug search
+    if st.session_state.get('moa_to_search'):
+        moa_search = st.session_state.moa_to_search
+        st.success(f"🔍 **Navigated from drug search** - Searching for MOA: **{moa_search}**")
+        # Clear the moa_to_search after using it
+        st.session_state.moa_to_search = None
+    else:
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            moa_search = st.text_input("Enter mechanism keywords (e.g., 'kinase inhibitor', 'receptor agonist'):")
+        with col2:
+            st.markdown("**Examples:**")
+            if st.button("🧪 Try: kinase inhibitor"):
+                st.session_state.moa_search = "kinase inhibitor"
+            if st.button("🎯 Try: receptor antagonist"):
+                st.session_state.moa_search = "receptor antagonist"
+            if st.button("🔬 Try: enzyme inhibitor"):
+                st.session_state.moa_search = "enzyme inhibitor"
     
     # Use session state if available
     if 'moa_search' in st.session_state:
