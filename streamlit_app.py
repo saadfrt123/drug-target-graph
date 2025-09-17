@@ -1034,6 +1034,23 @@ class DrugTargetGraphApp:
             st.error(f"Error getting drug details: {e}")
             return None
     
+    def find_drugs_by_target(self, target_name: str) -> List[Dict]:
+        """Find all drugs that target a specific target"""
+        if not self.driver:
+            return []
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (d:Drug)-[:TARGETS]->(t:Target {name: $target_name})
+                    RETURN d.name as drug, d.moa as moa, d.phase as phase
+                    ORDER BY d.name
+                """, target_name=target_name)
+                return result.data()
+        except Exception as e:
+            st.error(f"Error finding drugs by target: {e}")
+            return []
+    
     def get_target_details(self, target_name: str) -> Dict[str, Any]:
         """Get detailed information about a target including mechanism classifications"""
         if not self.driver:
@@ -3693,13 +3710,19 @@ def show_drug_search(app):
                     ]
                 )
 
-                # Display the interactive chart with click handling
+                # Display the interactive chart
                 selected_points = st.plotly_chart(
                     fig, 
                     use_container_width=True, 
                     key=f"main_drug_network_{selected_drug}",
                     on_select="rerun"
                 )
+                
+                # Add instruction text
+                if center_is_target:
+                    st.info("💡 **Use the buttons below to click on drug nodes and center the network!**")
+                else:
+                    st.info("💡 **Use the buttons below to click on target nodes and center the network!**")
                 
                 # Add clickable selection buttons below the graph
                 if center_is_target:
@@ -4024,8 +4047,8 @@ def show_target_search(app):
                                                             st.markdown(f"• {target}")
                                                         if len(drug_details['targets']) > 5:
                                                             st.info(f"... and {len(drug_details['targets']) - 5} more targets")
-                                                    else:
-                                                        st.info("No detailed information available for this drug")
+                                                else:
+                                                    st.info("No detailed information available for this drug")
                                             except Exception as e:
                                                 st.error(f"Error loading drug details: {e}")
                         # Duplicate section removed - now handled above with unified information
