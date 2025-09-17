@@ -6,6 +6,7 @@ from neo4j import GraphDatabase
 import logging
 import json
 import hashlib
+import os
 
 # Force light theme
 st.set_page_config(
