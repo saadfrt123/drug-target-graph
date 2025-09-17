@@ -2359,8 +2359,8 @@ def show_drug_search(app):
                         
                         # Show SMILES notation
                         st.markdown("#### 📝 SMILES Notation")
-                        st.code(drug_details['drug_info']['smiles'], language='text')
-                        st.caption("SMILES notation - textual representation of the molecular structure")
+                            st.code(drug_details['drug_info']['smiles'], language='text')
+                            st.caption("SMILES notation - textual representation of the molecular structure")
                         
                         # 3D Molecular Visualization
                         st.markdown("#### 🌐 **Interactive 3D Molecular Structure**")
@@ -2401,8 +2401,8 @@ def show_drug_search(app):
                                         st.warning(f"⚠️ Tried {len(smiles_list)} SMILES variants, none could be parsed")
                                         # Show all the SMILES that were tried
                                         st.markdown("##### 🔍 See all SMILES variants tried")
-                                        for i, s in enumerate(smiles_list):
-                                            st.code(f"{i+1}. {s}")
+                                            for i, s in enumerate(smiles_list):
+                                                st.code(f"{i+1}. {s}")
                                     
                                     # Continue with the working molecule
                                     if mol is not None:
@@ -3086,8 +3086,8 @@ def show_drug_search(app):
                                     st.metric("🎯 Confidence", f"{existing_classification['confidence']:.1%}")
                                 
                                 st.markdown("**📝 Scientific Reasoning**")
-                                st.write(existing_classification['reasoning'])
-                                st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
+                                    st.write(existing_classification['reasoning'])
+                                    st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
                             else:
                                 st.info("ℹ️ No classification available yet")
                     
@@ -3229,6 +3229,9 @@ def show_drug_search(app):
                     # For drug-centered view, we show the drug in center with targets around it
                     nodes_to_position = targets
                     center_is_target = False
+                    # Initialize target_drugs as empty list for drug-centered view
+                    target_drugs = []
+                    drugs_for_network = []
                 
                 # Group nodes by classification type for intelligent positioning
                 primary_nodes = []
@@ -3246,15 +3249,15 @@ def show_drug_search(app):
                     else:
                         # For drug-centered view, we're positioning targets around the drug
                         mech_info = target_mechanisms.get(node, {})
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
-                        
-                        if rel_type == 'Primary/On-Target':
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    
+                    if rel_type == 'Primary/On-Target':
                             primary_nodes.append(node)
-                        elif rel_type == 'Secondary/Off-Target':
+                    elif rel_type == 'Secondary/Off-Target':
                             secondary_nodes.append(node)
-                        elif rel_type == 'Unknown':
+                    elif rel_type == 'Unknown':
                             unknown_nodes.append(node)
-                        else:
+                    else:
                             unclassified_nodes.append(node)
                 
                 # Enhanced vivid circular layout with dramatic visual impact
@@ -3355,38 +3358,38 @@ def show_drug_search(app):
                     else:
                         # For drug-centered view, nodes are targets
                         mech_info = target_mechanisms.get(node, {})
-                        mechanism = mech_info.get('mechanism', 'Unclassified')
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
-                        target_class = mech_info.get('target_class', 'Unknown')
-                        target_subclass = mech_info.get('target_subclass', 'Unknown')
-                        confidence = mech_info.get('confidence', 0)
-                        reasoning = mech_info.get('reasoning', 'No details available')
-                        classified = mech_info.get('classified', False)
-                        
+                    mechanism = mech_info.get('mechanism', 'Unclassified')
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    target_class = mech_info.get('target_class', 'Unknown')
+                    target_subclass = mech_info.get('target_subclass', 'Unknown')
+                    confidence = mech_info.get('confidence', 0)
+                    reasoning = mech_info.get('reasoning', 'No details available')
+                    classified = mech_info.get('classified', False)
+                    
                         # Clean, professional color scheme for targets
-                        if rel_type == 'Primary/On-Target':
-                            edge_color = '#27AE60'  # Professional green
-                            edge_width = 4
-                            priority = 'Primary Effect'
-                            node_color = '#2ECC71'  # Emerald green
-                            glow_color = 'rgba(46, 204, 113, 0.2)'
-                        elif rel_type == 'Secondary/Off-Target':
-                            edge_color = '#E67E22'  # Professional orange
-                            edge_width = 3
-                            priority = 'Secondary Effect'
-                            node_color = '#F39C12'  # Orange
-                            glow_color = 'rgba(243, 156, 18, 0.2)'
-                        else:  # Unknown or Unclassified
-                            edge_color = '#7F8C8D'  # Professional gray
-                            edge_width = 2
-                            priority = 'Under Analysis'
-                            node_color = '#95A5A6'  # Light gray
-                            glow_color = 'rgba(149, 165, 166, 0.2)'
+                    if rel_type == 'Primary/On-Target':
+                        edge_color = '#27AE60'  # Professional green
+                        edge_width = 4
+                        priority = 'Primary Effect'
+                        node_color = '#2ECC71'  # Emerald green
+                        glow_color = 'rgba(46, 204, 113, 0.2)'
+                    elif rel_type == 'Secondary/Off-Target':
+                        edge_color = '#E67E22'  # Professional orange
+                        edge_width = 3
+                        priority = 'Secondary Effect'
+                        node_color = '#F39C12'  # Orange
+                        glow_color = 'rgba(243, 156, 18, 0.2)'
+                    else:  # Unknown or Unclassified
+                        edge_color = '#7F8C8D'  # Professional gray
+                        edge_width = 2
+                        priority = 'Under Analysis'
+                        node_color = '#95A5A6'  # Light gray
+                        glow_color = 'rgba(149, 165, 166, 0.2)'
                     
                     # Enhanced hover information with rich formatting
                     if center_is_target and node != center_node:
                         # Drug hover text
-                        hover_text = f"""
+                    hover_text = f"""
                         <b style="font-size:16px; color:{edge_color}">{node}</b><br>
                         <b>Drug Type:</b> <span style="color:{edge_color}">{priority}</span><br>
                         <b>MOA:</b> <span style="color:white">{moa}</span><br>
@@ -3397,11 +3400,11 @@ def show_drug_search(app):
                         # Target hover text
                         hover_text = f"""
                         <b style="font-size:16px; color:{edge_color}">{node}</b><br>
-                        <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
-                        <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                        <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
-                        """
+                    <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                    <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
+                    """
                     
                     # Add connection lines (from center to node)
                     center_x, center_y = 0, 0  # Center is always at 0,0
@@ -3492,26 +3495,26 @@ def show_drug_search(app):
                     else:
                         # For drug-centered view, nodes are targets
                         mech_info = target_mechanisms.get(node, {})
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
-                        mechanism = mech_info.get('mechanism', 'Unclassified')
-                        confidence = mech_info.get('confidence', 0)
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    mechanism = mech_info.get('mechanism', 'Unclassified')
+                    confidence = mech_info.get('confidence', 0)
                     
                         # Clean color scheme matching edges for targets
-                        if rel_type == 'Primary/On-Target':
-                            node_color = '#2ECC71'  # Emerald green
-                            border_color = '#27AE60'  # Professional green
-                            text_color = 'white'
-                            glow_color = 'rgba(46, 204, 113, 0.3)'
-                        elif rel_type == 'Secondary/Off-Target':
-                            node_color = '#F39C12'  # Orange
-                            border_color = '#E67E22'  # Professional orange
-                            text_color = 'white'
-                            glow_color = 'rgba(243, 156, 18, 0.3)'
-                        else:
-                            node_color = '#95A5A6'  # Light gray
-                            border_color = '#7F8C8D'  # Professional gray
-                            text_color = 'white'
-                            glow_color = 'rgba(149, 165, 166, 0.3)'
+                    if rel_type == 'Primary/On-Target':
+                        node_color = '#2ECC71'  # Emerald green
+                        border_color = '#27AE60'  # Professional green
+                        text_color = 'white'
+                        glow_color = 'rgba(46, 204, 113, 0.3)'
+                    elif rel_type == 'Secondary/Off-Target':
+                        node_color = '#F39C12'  # Orange
+                        border_color = '#E67E22'  # Professional orange
+                        text_color = 'white'
+                        glow_color = 'rgba(243, 156, 18, 0.3)'
+                    else:
+                        node_color = '#95A5A6'  # Light gray
+                        border_color = '#7F8C8D'  # Professional gray
+                        text_color = 'white'
+                        glow_color = 'rgba(149, 165, 166, 0.3)'
                     
                     # Enhanced hover info with rich styling
                     if center_is_target and node != center_node:
@@ -3526,11 +3529,11 @@ def show_drug_search(app):
                         # Target hover text
                         node_hover = f"""
                         <b style="font-size:18px; color:{border_color}">{node}</b><br>
-                        <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
-                        <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                        <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
-                        """
+                    <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
+                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                    <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
+                    """
                     
                     # Add subtle glow effect for nodes - single layer
                     fig.add_trace(go.Scatter(
@@ -3586,11 +3589,11 @@ def show_drug_search(app):
                     drug_is_center = center_node == selected_drug
                     center_indicator = '<br><b>⭐ CENTER NODE</b>' if drug_is_center else ''
                     center_hover = f"""
-                    <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
-                    <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
-                    <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
+                <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
+                <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
+                <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
                     <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>{center_indicator}
-                    """
+                """
 
                 # Central node subtle glow effect - single layer
                 fig.add_trace(go.Scatter(
@@ -3604,6 +3607,7 @@ def show_drug_search(app):
                 # Main central node - prominent but not overwhelming
                 if center_is_target:
                     # Center is a target
+                    center_is_center = center_node != selected_drug
                     center_color = 'purple' if center_is_center else '#E74C3C'
                     center_border_color = 'black' if center_is_center else '#C0392B'
                     center_size = 85 if center_is_center else 70
@@ -3612,6 +3616,8 @@ def show_drug_search(app):
                     center_name = '🎯 Target'
                 else:
                     # Center is the drug
+                    center_is_center = False  # Initialize for drug-centered view
+                    drug_is_center = center_node == selected_drug
                     center_color = 'purple' if drug_is_center else '#3498DB'
                     center_border_color = 'black' if drug_is_center else '#2980B9'
                     center_size = 85 if drug_is_center else 70
@@ -3784,13 +3790,13 @@ def show_drug_search(app):
                 
                 for idx, row in similar_df.iterrows():
                     st.markdown(f"#### 💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"**Drug:** {row['Drug Name']}")
-                        st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
-                    with col2:
-                        st.markdown(f"**Phase:** {row['Development Phase']}")
-                        st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown(f"**Drug:** {row['Drug Name']}")
+                            st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
+                        with col2:
+                            st.markdown(f"**Phase:** {row['Development Phase']}")
+                            st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
                         
                         # Add visual indicator for similarity strength
                         shared_count = int(row['Shared Targets'])
@@ -3951,9 +3957,9 @@ def show_target_search(app):
                                     
                                     # Drug basic info
                                     col1, col2, col3 = st.columns([2, 1, 1])
-                                    with col1:
+                                with col1:
                                         st.markdown(f"**Drug Name:** {drug['drug_name']}")
-                                        st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
+                                    st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
                                     with col2:
                                         st.markdown(f"**Classification:** {'✅ Classified' if drug['is_classified'] else '⏳ Unclassified'}")
                                     with col3:
@@ -4019,7 +4025,7 @@ def show_target_search(app):
                                                         if len(drug_details['targets']) > 5:
                                                             st.info(f"... and {len(drug_details['targets']) - 5} more targets")
                                                 
-                                                else:
+                                    else:
                                                     st.info("No detailed information available for this drug")
                                             except Exception as e:
                                                 st.error(f"Error loading drug details: {e}")
@@ -4208,7 +4214,7 @@ def show_target_search(app):
                             
                             # Add reset center button
                             col1, col2, col3 = st.columns([1, 2, 1])
-                            with col2:
+                                with col2:
                                 if st.button("🔄 Reset to Target Center", key=f"reset_main_center_{selected_target}"):
                                     # Reset center to target
                                     if center_key in st.session_state:
@@ -4269,7 +4275,7 @@ def show_target_search(app):
                                         if st.button(f"❌ Clear Selection", key=f"clear_main_{selected_drug_name}_{selected_target}"):
                                             if selected_drug_key in st.session_state:
                                                 del st.session_state[selected_drug_key]
-                                            st.rerun()
+                                                    st.rerun()
                             
                         except Exception as e:
                             st.info("Network visualization not available (missing dependencies)")
@@ -4565,8 +4571,8 @@ def show_drug_discovery(app):
                         st.subheader("⚙️ Mechanisms of Action Breakdown")
                         for moa, targets in pathways['moa_groups'].items():
                             st.markdown(f"#### 🔬 {moa} ({len(targets)} targets)")
-                            for target in targets:
-                                st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
+                                for target in targets:
+                                    st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
                     else:
                         st.error("Could not analyze pathways. Please check drug name.")
     
@@ -4918,17 +4924,17 @@ def show_drug_repurposing(app):
                 
                 for candidate in repurposing_candidates:
                     st.markdown(f"#### 💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Source Drug:** {candidate['source_drug']}")
-                        st.write(f"**MOA:** {candidate['source_moa']}")
-                        st.write(f"**Phase:** {candidate['source_phase']}")
-                    with col2:
-                        st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
-                        st.write(f"**MOA:** {candidate['candidate_moa']}")
-                        st.write(f"**Phase:** {candidate['candidate_phase']}")
-                    
-                    st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Source Drug:** {candidate['source_drug']}")
+                            st.write(f"**MOA:** {candidate['source_moa']}")
+                            st.write(f"**Phase:** {candidate['source_phase']}")
+                        with col2:
+                            st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
+                            st.write(f"**MOA:** {candidate['candidate_moa']}")
+                            st.write(f"**Phase:** {candidate['candidate_phase']}")
+                        
+                        st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
     
     with tab2:
         st.subheader("🌟 Top Repurposing Opportunities")
@@ -5045,7 +5051,7 @@ def show_mechanism_classification(app):
                     st.metric("📅 Date", existing['timestamp'][:10])
                 
                 st.markdown("**📝 Scientific Reasoning**")
-                st.write(existing['reasoning'])
+                    st.write(existing['reasoning'])
                 
                 # Reclassify option
                 if st.button("🔄 Reclassify", help="Force a new classification"):
