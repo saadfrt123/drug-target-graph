@@ -3210,107 +3210,111 @@ def show_drug_search(app):
                 center_node = st.session_state.get(center_key, selected_drug)
                 
                 # Enhanced layout algorithm based on classification types
-                # If center is a target, position it at center and arrange others around it
+                # If center is a target, fetch all drugs targeting that target
                 if center_node != selected_drug and center_node in targets:
+                    # Get all drugs targeting the selected target
+                    target_drugs = app.find_drugs_by_target(center_node)
+                    # Create a list of drug names for the network
+                    drugs_for_network = [drug['drug'] for drug in target_drugs]
                     # Center node is a target - position it at center
-                    drug_x, drug_y = 0, 0
-                    target_positions = []
-                    num_targets = len(targets)
-                    
-                    # Find the center target position
                     center_target_x, center_target_y = 0, 0
                     other_targets = [t for t in targets if t != center_node]
+                    # For target-centered view, we show the target in center with drugs around it
+                    nodes_to_position = drugs_for_network
+                    center_is_target = True
                 else:
                     # Default: drug at center
-                    drug_x, drug_y = 0, 0
-                    target_positions = []
-                    num_targets = len(targets)
                     center_target_x, center_target_y = None, None
                     other_targets = targets
+                    # For drug-centered view, we show the drug in center with targets around it
+                    nodes_to_position = targets
+                    center_is_target = False
                 
-                # Group targets by classification type for intelligent positioning
-                primary_targets = []
-                secondary_targets = []
-                unknown_targets = []
-                unclassified_targets = []
+                # Group nodes by classification type for intelligent positioning
+                primary_nodes = []
+                secondary_nodes = []
+                unknown_nodes = []
+                unclassified_nodes = []
                 
-                for target in other_targets:
-                    mech_info = target_mechanisms.get(target, {})
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    
-                    if rel_type == 'Primary/On-Target':
-                        primary_targets.append(target)
-                    elif rel_type == 'Secondary/Off-Target':
-                        secondary_targets.append(target)
-                    elif rel_type == 'Unknown':
-                        unknown_targets.append(target)
+                # For target-centered view, classify drugs; for drug-centered view, classify targets
+                for node in nodes_to_position:
+                    if center_is_target:
+                        # For target-centered view, we're positioning drugs around the target
+                        # We can classify drugs by their MOA or phase
+                        # For now, we'll use a simple classification
+                        primary_nodes.append(node)
                     else:
-                        unclassified_targets.append(target)
+                        # For drug-centered view, we're positioning targets around the drug
+                        mech_info = target_mechanisms.get(node, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        
+                        if rel_type == 'Primary/On-Target':
+                            primary_nodes.append(node)
+                        elif rel_type == 'Secondary/Off-Target':
+                            secondary_nodes.append(node)
+                        elif rel_type == 'Unknown':
+                            unknown_nodes.append(node)
+                        else:
+                            unclassified_nodes.append(node)
                 
                 # Enhanced vivid circular layout with dramatic visual impact
-                target_positions = []
+                node_positions = []
                 
-                # Group all targets by type for intelligent positioning
-                all_target_groups = [
-                    (primary_targets, 'primary'),
-                    (secondary_targets, 'secondary'), 
-                    (unknown_targets, 'unknown'),
-                    (unclassified_targets, 'unclassified')
+                # Group all nodes by type for intelligent positioning
+                all_node_groups = [
+                    (primary_nodes, 'primary'),
+                    (secondary_nodes, 'secondary'), 
+                    (unknown_nodes, 'unknown'),
+                    (unclassified_nodes, 'unclassified')
                 ]
                 
                 # Calculate dramatic circular layout for maximum visual impact
-                total_targets = len(other_targets)
+                total_nodes = len(nodes_to_position)
                 
-                if total_targets <= 8:
-                    # Single ring layout for few targets
+                if total_nodes <= 8:
+                    # Single ring layout for few nodes
                     radius = 6
-                    target_index = 0
-                    for target_group, group_type in all_target_groups:
-                        for target in target_group:
-                            angle = 2 * math.pi * target_index / total_targets
+                    node_index = 0
+                    for node_group, group_type in all_node_groups:
+                        for node in node_group:
+                            angle = 2 * math.pi * node_index / total_nodes
                             x = radius * math.cos(angle)
                             y = radius * math.sin(angle)
-                            target_positions.append((x, y, target, group_type))
-                            target_index += 1
+                            node_positions.append((x, y, node, group_type))
+                            node_index += 1
                 
-                # Add center target if it's not the drug
-                if center_node != selected_drug and center_node in targets:
-                    # Add center target at position 0,0
-                    mech_info = target_mechanisms.get(center_node, {})
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    if rel_type == 'Primary/On-Target':
-                        group_type = 'primary'
-                    elif rel_type == 'Secondary/Off-Target':
-                        group_type = 'secondary'
-                    elif rel_type == 'Unknown':
-                        group_type = 'unknown'
-                    else:
-                        group_type = 'unclassified'
-                    target_positions.append((0, 0, center_node, group_type))
+                # Add center node at position 0,0
+                if center_is_target:
+                    # Center is a target - add it at 0,0
+                    node_positions.append((0, 0, center_node, 'center'))
                 else:
-                    # Multi-ring layout for many targets - more dramatic
+                    # Center is the drug - add it at 0,0
+                    node_positions.append((0, 0, center_node, 'center'))
+                
+                # Multi-ring layout for many nodes - more dramatic
+                if total_nodes > 8:
                     inner_radius = 5
                     outer_radius = 9
-                    targets_per_ring = min(10, total_targets // 2)
+                    nodes_per_ring = min(10, total_nodes // 2)
                     
-                    target_index = 0
-                    for target_group, group_type in all_target_groups:
-                        for target in target_group:
-                            if target_index < targets_per_ring:
+                    node_index = 0
+                    for node_group, group_type in all_node_groups:
+                        for node in node_group:
+                            if node_index < nodes_per_ring:
                                 # Inner ring
-                                angle = 2 * math.pi * target_index / targets_per_ring
+                                angle = 2 * math.pi * node_index / nodes_per_ring
                                 x = inner_radius * math.cos(angle)
                                 y = inner_radius * math.sin(angle)
                             else:
                                 # Outer ring
-                                outer_index = target_index - targets_per_ring
-                                remaining_targets = total_targets - targets_per_ring
-                                angle = 2 * math.pi * outer_index / remaining_targets
+                                outer_index = node_index - nodes_per_ring
+                                remaining_nodes = total_nodes - nodes_per_ring
+                                angle = 2 * math.pi * outer_index / remaining_nodes
                                 x = outer_radius * math.cos(angle)
                                 y = outer_radius * math.sin(angle)
                             
-                            target_positions.append((x, y, target, group_type))
-                            target_index += 1
+                            node_positions.append((x, y, node, group_type))
+                            node_index += 1
 
                 # Create the VIVID, dramatic plot
                 fig = go.Figure()
@@ -3318,49 +3322,93 @@ def show_drug_search(app):
                 # Add dramatic connection lines with glow effects
                 edge_traces = {}  # Group edges by type for legend
                 
-                for x, y, target, ring_type in target_positions:
-                    # Get comprehensive mechanism info for this target
-                    mech_info = target_mechanisms.get(target, {})
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    target_class = mech_info.get('target_class', 'Unknown')
-                    target_subclass = mech_info.get('target_subclass', 'Unknown')
-                    confidence = mech_info.get('confidence', 0)
-                    reasoning = mech_info.get('reasoning', 'No details available')
-                    classified = mech_info.get('classified', False)
-                    
-                    # Clean, professional color scheme
-                    if rel_type == 'Primary/On-Target':
-                        edge_color = '#27AE60'  # Professional green
-                        edge_width = 4
-                        priority = 'Primary Effect'
-                        node_color = '#2ECC71'  # Emerald green
-                        glow_color = 'rgba(46, 204, 113, 0.2)'
-                    elif rel_type == 'Secondary/Off-Target':
-                        edge_color = '#E67E22'  # Professional orange
+                for x, y, node, ring_type in node_positions:
+                    # Handle different node types
+                    if center_is_target and node != center_node:
+                        # For target-centered view, nodes are drugs
+                        # Get drug info from the target_drugs data
+                        drug_info = next((d for d in target_drugs if d['drug'] == node), {})
+                        moa = drug_info.get('moa', 'Unknown')
+                        phase = drug_info.get('phase', 'Unknown')
+                        
+                        # Color scheme for drugs
+                        if phase == 'Approved':
+                            node_color = '#2ECC71'  # Green for approved
+                            edge_color = '#27AE60'
+                            priority = 'Approved Drug'
+                        elif phase in ['Phase III', 'Phase 3']:
+                            node_color = '#3498DB'  # Blue for Phase III
+                            edge_color = '#2980B9'
+                            priority = 'Phase III Drug'
+                        elif phase in ['Phase II', 'Phase 2']:
+                            node_color = '#F39C12'  # Orange for Phase II
+                            edge_color = '#E67E22'
+                            priority = 'Phase II Drug'
+                        else:
+                            node_color = '#95A5A6'  # Gray for others
+                            edge_color = '#7F8C8D'
+                            priority = 'Development Drug'
+                        
                         edge_width = 3
-                        priority = 'Secondary Effect'
-                        node_color = '#F39C12'  # Orange
-                        glow_color = 'rgba(243, 156, 18, 0.2)'
-                    else:  # Unknown or Unclassified
-                        edge_color = '#7F8C8D'  # Professional gray
-                        edge_width = 2
-                        priority = 'Under Analysis'
-                        node_color = '#95A5A6'  # Light gray
-                        glow_color = 'rgba(149, 165, 166, 0.2)'
+                        glow_color = f'rgba({int(node_color[1:3], 16)}, {int(node_color[3:5], 16)}, {int(node_color[5:7], 16)}, 0.2)'
+                        
+                    else:
+                        # For drug-centered view, nodes are targets
+                        mech_info = target_mechanisms.get(node, {})
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        target_class = mech_info.get('target_class', 'Unknown')
+                        target_subclass = mech_info.get('target_subclass', 'Unknown')
+                        confidence = mech_info.get('confidence', 0)
+                        reasoning = mech_info.get('reasoning', 'No details available')
+                        classified = mech_info.get('classified', False)
+                        
+                        # Clean, professional color scheme for targets
+                        if rel_type == 'Primary/On-Target':
+                            edge_color = '#27AE60'  # Professional green
+                            edge_width = 4
+                            priority = 'Primary Effect'
+                            node_color = '#2ECC71'  # Emerald green
+                            glow_color = 'rgba(46, 204, 113, 0.2)'
+                        elif rel_type == 'Secondary/Off-Target':
+                            edge_color = '#E67E22'  # Professional orange
+                            edge_width = 3
+                            priority = 'Secondary Effect'
+                            node_color = '#F39C12'  # Orange
+                            glow_color = 'rgba(243, 156, 18, 0.2)'
+                        else:  # Unknown or Unclassified
+                            edge_color = '#7F8C8D'  # Professional gray
+                            edge_width = 2
+                            priority = 'Under Analysis'
+                            node_color = '#95A5A6'  # Light gray
+                            glow_color = 'rgba(149, 165, 166, 0.2)'
                     
                     # Enhanced hover information with rich formatting
-                    hover_text = f"""
-                    <b style="font-size:16px; color:{edge_color}">{target}</b><br>
-                    <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
-                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                    <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
-                    """
+                    if center_is_target and node != center_node:
+                        # Drug hover text
+                        hover_text = f"""
+                        <b style="font-size:16px; color:{edge_color}">{node}</b><br>
+                        <b>Drug Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                        <b>MOA:</b> <span style="color:white">{moa}</span><br>
+                        <b>Phase:</b> <span style="color:gold">{phase}</span><br>
+                        <b>Targets:</b> <span style="color:lightblue">{center_node}</span>
+                        """
+                    else:
+                        # Target hover text
+                        hover_text = f"""
+                        <b style="font-size:16px; color:{edge_color}">{node}</b><br>
+                        <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                        <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                        <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
+                        """
+                    
+                    # Add connection lines (from center to node)
+                    center_x, center_y = 0, 0  # Center is always at 0,0
                     
                     # Add subtle glow effect - much more minimal
                     fig.add_trace(go.Scatter(
-                        x=[drug_x, x], y=[drug_y, y],
+                        x=[center_x, x], y=[center_y, y],
                         mode='lines',
                         line=dict(color=glow_color, width=edge_width + 2),
                         showlegend=False,
@@ -3369,7 +3417,7 @@ def show_drug_search(app):
                     
                     # Main connection line with VIVID colors
                     fig.add_trace(go.Scatter(
-                        x=[drug_x, x], y=[drug_y, y],
+                        x=[center_x, x], y=[center_y, y],
                         mode='lines',
                         line=dict(color=edge_color, width=edge_width),
                         name=priority if priority not in edge_traces else '',
@@ -3381,9 +3429,9 @@ def show_drug_search(app):
                     edge_traces[priority] = True
                     
                     # Add clean mechanism labels - only for primary effects to reduce clutter
-                    if mechanism != 'Unclassified' and mechanism != 'Unknown' and rel_type == 'Primary/On-Target':
-                        mid_x = (drug_x + x) / 2
-                        mid_y = (drug_y + y) / 2
+                    if not center_is_target and mechanism != 'Unclassified' and mechanism != 'Unknown' and rel_type == 'Primary/On-Target':
+                        mid_x = (center_x + x) / 2
+                        mid_y = (center_y + y) / 2
                         
                         # Simplified mechanism text display
                         display_mechanism = mechanism
@@ -3411,38 +3459,78 @@ def show_drug_search(app):
                             hoverinfo='text'
                         ))
 
-                # Enhanced VIVID target nodes with dramatic glow effects
-                for x, y, target, ring_type in target_positions:
-                    mech_info = target_mechanisms.get(target, {})
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
-                    confidence = mech_info.get('confidence', 0)
-                    
-                    # Clean color scheme matching edges
-                    if rel_type == 'Primary/On-Target':
-                        node_color = '#2ECC71'  # Emerald green
-                        border_color = '#27AE60'  # Professional green
-                        text_color = 'white'
-                        glow_color = 'rgba(46, 204, 113, 0.3)'
-                    elif rel_type == 'Secondary/Off-Target':
-                        node_color = '#F39C12'  # Orange
-                        border_color = '#E67E22'  # Professional orange
-                        text_color = 'white'
-                        glow_color = 'rgba(243, 156, 18, 0.3)'
+                # Enhanced VIVID nodes with dramatic glow effects
+                for x, y, node, ring_type in node_positions:
+                    # Handle different node types for styling
+                    if center_is_target and node != center_node:
+                        # For target-centered view, nodes are drugs
+                        drug_info = next((d for d in target_drugs if d['drug'] == node), {})
+                        moa = drug_info.get('moa', 'Unknown')
+                        phase = drug_info.get('phase', 'Unknown')
+                        
+                        # Color scheme for drugs
+                        if phase == 'Approved':
+                            node_color = '#2ECC71'  # Green for approved
+                            border_color = '#27AE60'
+                            text_color = 'white'
+                            glow_color = 'rgba(46, 204, 113, 0.3)'
+                        elif phase in ['Phase III', 'Phase 3']:
+                            node_color = '#3498DB'  # Blue for Phase III
+                            border_color = '#2980B9'
+                            text_color = 'white'
+                            glow_color = 'rgba(52, 152, 219, 0.3)'
+                        elif phase in ['Phase II', 'Phase 2']:
+                            node_color = '#F39C12'  # Orange for Phase II
+                            border_color = '#E67E22'
+                            text_color = 'white'
+                            glow_color = 'rgba(243, 156, 18, 0.3)'
+                        else:
+                            node_color = '#95A5A6'  # Gray for others
+                            border_color = '#7F8C8D'
+                            text_color = 'white'
+                            glow_color = 'rgba(149, 165, 166, 0.3)'
                     else:
-                        node_color = '#95A5A6'  # Light gray
-                        border_color = '#7F8C8D'  # Professional gray
-                        text_color = 'white'
-                        glow_color = 'rgba(149, 165, 166, 0.3)'
+                        # For drug-centered view, nodes are targets
+                        mech_info = target_mechanisms.get(node, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        confidence = mech_info.get('confidence', 0)
+                    
+                        # Clean color scheme matching edges for targets
+                        if rel_type == 'Primary/On-Target':
+                            node_color = '#2ECC71'  # Emerald green
+                            border_color = '#27AE60'  # Professional green
+                            text_color = 'white'
+                            glow_color = 'rgba(46, 204, 113, 0.3)'
+                        elif rel_type == 'Secondary/Off-Target':
+                            node_color = '#F39C12'  # Orange
+                            border_color = '#E67E22'  # Professional orange
+                            text_color = 'white'
+                            glow_color = 'rgba(243, 156, 18, 0.3)'
+                        else:
+                            node_color = '#95A5A6'  # Light gray
+                            border_color = '#7F8C8D'  # Professional gray
+                            text_color = 'white'
+                            glow_color = 'rgba(149, 165, 166, 0.3)'
                     
                     # Enhanced hover info with rich styling
-                    target_hover = f"""
-                    <b style="font-size:18px; color:{border_color}">{target}</b><br>
-                    <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
-                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                    <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
-                    """
+                    if center_is_target and node != center_node:
+                        # Drug hover text
+                        node_hover = f"""
+                        <b style="font-size:18px; color:{border_color}">{node}</b><br>
+                        <b>Drug Type:</b> <span style="color:{border_color}">{phase}</span><br>
+                        <b>MOA:</b> <span style="color:white">{moa}</span><br>
+                        <b>Targets:</b> <span style="color:lightblue">{center_node}</span>
+                        """
+                    else:
+                        # Target hover text
+                        node_hover = f"""
+                        <b style="font-size:18px; color:{border_color}">{node}</b><br>
+                        <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
+                        <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                        <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
+                        """
                     
                     # Add subtle glow effect for nodes - single layer
                     fig.add_trace(go.Scatter(
@@ -3454,7 +3542,7 @@ def show_drug_search(app):
                     ))
                     
                     # Check if this is the center node
-                    is_center = center_node == target
+                    is_center = center_node == node
                     if is_center:
                         # Highlight center node
                         node_color = 'purple'
@@ -3462,71 +3550,99 @@ def show_drug_search(app):
                         text_color = 'white'
                         node_size = 70
                         text_size = 13
-                        target_hover += '<br><b>⭐ CENTER NODE</b>'
+                        node_hover += '<br><b>⭐ CENTER NODE</b>'
                     else:
                         node_size = 55
                         text_size = 11
                     
-                    # Main target node with clean styling
+                    # Main node with clean styling
                     fig.add_trace(go.Scatter(
                         x=[x], y=[y],
                         mode='markers+text',
                         marker=dict(size=node_size, color=node_color, 
                                    line=dict(color=border_color, width=4 if is_center else 3),
                                    opacity=0.9),
-                        text=[target],
+                        text=[node],
                         textposition='middle center',
                         textfont=dict(size=text_size, color=text_color, family='Arial'),
                         showlegend=False,
-                        hovertemplate=target_hover + '<extra></extra>',
+                        hovertemplate=node_hover + '<extra></extra>',
                         hoverinfo='text'
                     ))
 
-                # Enhanced CENTRAL drug node with MASSIVE dramatic effect
-                drug_is_center = center_node == selected_drug
-                center_indicator = '<br><b>⭐ CENTER NODE</b>' if drug_is_center else ''
-                drug_hover = f"""
-                <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
-                <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
-                <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
-                <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>{center_indicator}
-                """
+                # Enhanced CENTRAL node with MASSIVE dramatic effect
+                if center_is_target:
+                    # Center is a target
+                    center_is_center = center_node != selected_drug
+                    center_indicator = '<br><b>⭐ CENTER NODE</b>' if center_is_center else ''
+                    center_hover = f"""
+                    <b style="font-size:22px; color:#FF1493">{center_node}</b><br>
+                    <b>Type:</b> <span style="color:#FF1493">Biological Target</span><br>
+                    <b>Connected Drugs:</b> <span style="color:lightblue">{len(drugs_for_network)}</span><br>
+                    <b>Center View:</b> <span style="color:gold">Target-Centered</span>{center_indicator}
+                    """
+                else:
+                    # Center is the drug
+                    drug_is_center = center_node == selected_drug
+                    center_indicator = '<br><b>⭐ CENTER NODE</b>' if drug_is_center else ''
+                    center_hover = f"""
+                    <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
+                    <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
+                    <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
+                    <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>{center_indicator}
+                    """
 
-                # Drug node subtle glow effect - single layer
+                # Central node subtle glow effect - single layer
                 fig.add_trace(go.Scatter(
-                    x=[drug_x], y=[drug_y],
+                    x=[0], y=[0],
                     mode='markers',
                     marker=dict(size=85, color='rgba(52, 152, 219, 0.3)', opacity=0.5),
                     showlegend=False,
                     hoverinfo='skip'
                 ))
 
-                # Main drug node - prominent but not overwhelming
-                drug_color = 'purple' if drug_is_center else '#3498DB'
-                drug_border_color = 'black' if drug_is_center else '#2980B9'
-                drug_size = 85 if drug_is_center else 70
-                drug_text_size = 16 if drug_is_center else 14
+                # Main central node - prominent but not overwhelming
+                if center_is_target:
+                    # Center is a target
+                    center_color = 'purple' if center_is_center else '#E74C3C'
+                    center_border_color = 'black' if center_is_center else '#C0392B'
+                    center_size = 85 if center_is_center else 70
+                    center_text_size = 16 if center_is_center else 14
+                    center_text = center_node.upper()
+                    center_name = '🎯 Target'
+                else:
+                    # Center is the drug
+                    center_color = 'purple' if drug_is_center else '#3498DB'
+                    center_border_color = 'black' if drug_is_center else '#2980B9'
+                    center_size = 85 if drug_is_center else 70
+                    center_text_size = 16 if drug_is_center else 14
+                    center_text = selected_drug.upper()
+                    center_name = '💊 Drug'
                 
                 fig.add_trace(go.Scatter(
-                    x=[drug_x], y=[drug_y],
+                    x=[0], y=[0],
                     mode='markers+text',
-                    marker=dict(size=drug_size, color=drug_color,
-                               line=dict(color=drug_border_color, width=5 if drug_is_center else 4),
+                    marker=dict(size=center_size, color=center_color,
+                               line=dict(color=center_border_color, width=5 if (center_is_center or drug_is_center) else 4),
                                opacity=0.9),
-                    text=[selected_drug.upper()],
+                    text=[center_text],
                     textposition='middle center',
-                    textfont=dict(size=drug_text_size, color='white', family='Arial'),
-                    name='💊 Drug',
+                    textfont=dict(size=center_text_size, color='white', family='Arial'),
+                    name=center_name,
                     showlegend=True,
-                    hovertemplate=drug_hover + '<extra></extra>',
+                    hovertemplate=center_hover + '<extra></extra>',
                     hoverinfo='text'
                 ))
 
                 # Clean, professional layout
-                center_info = f" | 🟣 Center: {center_node}" if center_node != selected_drug else ""
+                if center_is_target:
+                    title_text = f"🕸️ Target-Centered Network: {center_node} (showing {len(drugs_for_network)} drugs)"
+                else:
+                    title_text = f"🕸️ Drug-Centered Network: {selected_drug} (showing {len(targets)} targets)"
+                
                 fig.update_layout(
                     title=dict(
-                        text=f"🕸️ Interactive Drug-Target Network: {selected_drug}{center_info}",
+                        text=title_text,
                         font=dict(size=20, color='#2C3E50', family='Arial'),
                         x=0.5
                     ),
@@ -3579,20 +3695,34 @@ def show_drug_search(app):
                     on_select="rerun"
                 )
                 
-                # Add clickable target selection buttons below the graph
-                st.markdown("**🎯 Click a target below to center the network on it:**")
-                target_cols = st.columns(min(4, len(targets_data)))
-                for i, (target_name, target_data) in enumerate(targets_data.items()):
-                    with target_cols[i % len(target_cols)]:
-                        if st.button(f"🎯 {target_name}", key=f"center_target_{selected_drug}_{target_name}"):
-                            st.session_state[f'main_drug_network_center_{selected_drug}'] = target_name
-                            st.rerun()
+                # Add clickable selection buttons below the graph
+                if center_is_target:
+                    st.markdown("**💊 Click a drug below to center the network on it:**")
+                    drug_cols = st.columns(min(4, len(drugs_for_network)))
+                    for i, drug_name in enumerate(drugs_for_network):
+                        with drug_cols[i % len(drug_cols)]:
+                            if st.button(f"💊 {drug_name}", key=f"center_drug_{selected_drug}_{drug_name}"):
+                                st.session_state[f'main_drug_network_center_{selected_drug}'] = drug_name
+                                st.rerun()
+                else:
+                    st.markdown("**🎯 Click a target below to center the network on it:**")
+                    target_cols = st.columns(min(4, len(targets)))
+                    for i, target_name in enumerate(targets):
+                        with target_cols[i % len(target_cols)]:
+                            if st.button(f"🎯 {target_name}", key=f"center_target_{selected_drug}_{target_name}"):
+                                st.session_state[f'main_drug_network_center_{selected_drug}'] = target_name
+                                st.rerun()
                 
                 # Add reset center button
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
-                    if st.button("🔄 Reset to Drug Center", key=f"reset_main_drug_center_{selected_drug}"):
-                        # Reset center to drug
+                    if center_is_target:
+                        reset_text = "🔄 Reset to Target Center"
+                    else:
+                        reset_text = "🔄 Reset to Drug Center"
+                    
+                    if st.button(reset_text, key=f"reset_main_drug_center_{selected_drug}"):
+                        # Reset center to original
                         center_key = f'main_drug_network_center_{selected_drug}'
                         if center_key in st.session_state:
                             del st.session_state[center_key]
