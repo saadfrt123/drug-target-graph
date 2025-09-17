@@ -3086,8 +3086,8 @@ def show_drug_search(app):
                                     st.metric("🎯 Confidence", f"{existing_classification['confidence']:.1%}")
                                 
                                 st.markdown("**📝 Scientific Reasoning**")
-                                    st.write(existing_classification['reasoning'])
-                                    st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
+                                st.write(existing_classification['reasoning'])
+                                st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
                             else:
                                 st.info("ℹ️ No classification available yet")
                     
@@ -3389,7 +3389,7 @@ def show_drug_search(app):
                     # Enhanced hover information with rich formatting
                     if center_is_target and node != center_node:
                         # Drug hover text
-                    hover_text = f"""
+                        hover_text = f"""
                         <b style="font-size:16px; color:{edge_color}">{node}</b><br>
                         <b>Drug Type:</b> <span style="color:{edge_color}">{priority}</span><br>
                         <b>MOA:</b> <span style="color:white">{moa}</span><br>
@@ -3790,13 +3790,13 @@ def show_drug_search(app):
                 
                 for idx, row in similar_df.iterrows():
                     st.markdown(f"#### 💊 **{row['Drug Name']}** - {row['Shared Targets']} shared targets")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.markdown(f"**Drug:** {row['Drug Name']}")
-                            st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
-                        with col2:
-                            st.markdown(f"**Phase:** {row['Development Phase']}")
-                            st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown(f"**Drug:** {row['Drug Name']}")
+                        st.markdown(f"**Mechanism:** {row['Mechanism of Action']}")
+                    with col2:
+                        st.markdown(f"**Phase:** {row['Development Phase']}")
+                        st.markdown(f"**Shared Targets:** {row['Shared Targets']}")
                         
                         # Add visual indicator for similarity strength
                         shared_count = int(row['Shared Targets'])
@@ -3958,22 +3958,22 @@ def show_target_search(app):
                                     # Drug basic info
                                     col1, col2, col3 = st.columns([2, 1, 1])
                                 with col1:
-                                        st.markdown(f"**Drug Name:** {drug['drug_name']}")
+                                    st.markdown(f"**Drug Name:** {drug['drug_name']}")
                                     st.markdown(f"**Phase:** {drug['drug_phase'] or 'Unknown'}")
-                                    with col2:
-                                        st.markdown(f"**Classification:** {'✅ Classified' if drug['is_classified'] else '⏳ Unclassified'}")
-                                    with col3:
-                                        if not drug['is_classified'] and app.classifier:
-                                            if st.button(f"🔬 Classify", key=f"classify_{drug['drug_name']}_{selected_target}_{i}"):
-                                                with st.spinner(f"Classifying {drug['drug_name']} → {selected_target}..."):
-                                                    try:
-                                                        classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
-                                                        if classification:
-                                                            st.success(f"✅ Classified: {classification}")
-                                                        else:
-                                                            st.warning("⚠️ Classification failed")
-                                                    except Exception as e:
-                                                        st.error(f"❌ Error: {e}")
+                                with col2:
+                                    st.markdown(f"**Classification:** {'✅ Classified' if drug['is_classified'] else '⏳ Unclassified'}")
+                                with col3:
+                                    if not drug['is_classified'] and app.classifier:
+                                        if st.button(f"🔬 Classify", key=f"classify_{drug['drug_name']}_{selected_target}_{i}"):
+                                            with st.spinner(f"Classifying {drug['drug_name']} → {selected_target}..."):
+                                                try:
+                                                    classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
+                                                    if classification:
+                                                        st.success(f"✅ Classified: {classification}")
+                                                    else:
+                                                        st.warning("⚠️ Classification failed")
+                                                except Exception as e:
+                                                    st.error(f"❌ Error: {e}")
                                     
                                     # MOA information
                                     moa = drug['drug_moa'] or 'Not specified'
@@ -4024,9 +4024,8 @@ def show_target_search(app):
                                                             st.markdown(f"• {target}")
                                                         if len(drug_details['targets']) > 5:
                                                             st.info(f"... and {len(drug_details['targets']) - 5} more targets")
-                                                
-                                    else:
-                                                    st.info("No detailed information available for this drug")
+                                                    else:
+                                                        st.info("No detailed information available for this drug")
                                             except Exception as e:
                                                 st.error(f"Error loading drug details: {e}")
                         # Duplicate section removed - now handled above with unified information
@@ -4214,7 +4213,7 @@ def show_target_search(app):
                             
                             # Add reset center button
                             col1, col2, col3 = st.columns([1, 2, 1])
-                                with col2:
+                            with col2:
                                 if st.button("🔄 Reset to Target Center", key=f"reset_main_center_{selected_target}"):
                                     # Reset center to target
                                     if center_key in st.session_state:
@@ -4275,7 +4274,7 @@ def show_target_search(app):
                                         if st.button(f"❌ Clear Selection", key=f"clear_main_{selected_drug_name}_{selected_target}"):
                                             if selected_drug_key in st.session_state:
                                                 del st.session_state[selected_drug_key]
-                                                    st.rerun()
+                                                st.rerun()
                             
                         except Exception as e:
                             st.info("Network visualization not available (missing dependencies)")
@@ -4571,8 +4570,8 @@ def show_drug_discovery(app):
                         st.subheader("⚙️ Mechanisms of Action Breakdown")
                         for moa, targets in pathways['moa_groups'].items():
                             st.markdown(f"#### 🔬 {moa} ({len(targets)} targets)")
-                                for target in targets:
-                                    st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
+                            for target in targets:
+                                st.write(f"• **{target['target']}** - Targeted by {target['other_drugs']} other drugs")
                     else:
                         st.error("Could not analyze pathways. Please check drug name.")
     
@@ -4924,17 +4923,17 @@ def show_drug_repurposing(app):
                 
                 for candidate in repurposing_candidates:
                     st.markdown(f"#### 💊 {candidate['candidate_drug']} (Shared targets: {candidate['shared_targets']})")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write(f"**Source Drug:** {candidate['source_drug']}")
-                            st.write(f"**MOA:** {candidate['source_moa']}")
-                            st.write(f"**Phase:** {candidate['source_phase']}")
-                        with col2:
-                            st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
-                            st.write(f"**MOA:** {candidate['candidate_moa']}")
-                            st.write(f"**Phase:** {candidate['candidate_phase']}")
-                        
-                        st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Source Drug:** {candidate['source_drug']}")
+                        st.write(f"**MOA:** {candidate['source_moa']}")
+                        st.write(f"**Phase:** {candidate['source_phase']}")
+                    with col2:
+                        st.write(f"**Candidate Drug:** {candidate['candidate_drug']}")
+                        st.write(f"**MOA:** {candidate['candidate_moa']}")
+                        st.write(f"**Phase:** {candidate['candidate_phase']}")
+                    
+                    st.info(f"🎯 **Shared biological targets:** {candidate['shared_targets']}")
     
     with tab2:
         st.subheader("🌟 Top Repurposing Opportunities")
@@ -5051,7 +5050,7 @@ def show_mechanism_classification(app):
                     st.metric("📅 Date", existing['timestamp'][:10])
                 
                 st.markdown("**📝 Scientific Reasoning**")
-                    st.write(existing['reasoning'])
+                st.write(existing['reasoning'])
                 
                 # Reclassify option
                 if st.button("🔄 Reclassify", help="Force a new classification"):
