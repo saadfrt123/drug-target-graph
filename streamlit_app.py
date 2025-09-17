@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from neo4j import GraphDatabase
 import logging
+import json
+import hashlib
 
 # Force light theme
 st.set_page_config(
@@ -17,6 +19,55 @@ st.set_page_config(
         'About': "# Drug-Target Graph Database\nExplore drug-target interactions!"
     }
 )
+
+# Classification caching system
+CACHE_DIR = "classification_cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+def get_cache_key(drug_name, target_name):
+    """Generate a unique cache key for a drug-target pair"""
+    return hashlib.md5(f"{drug_name}_{target_name}".encode()).hexdigest()
+
+def save_classification(drug_name, target_name, classification_result):
+    """Save classification result to cache"""
+    cache_key = get_cache_key(drug_name, target_name)
+    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
+    
+    cache_data = {
+        "drug_name": drug_name,
+        "target_name": target_name,
+        "classification": classification_result,
+        "timestamp": pd.Timestamp.now().isoformat()
+    }
+    
+    try:
+        with open(cache_file, 'w') as f:
+            json.dump(cache_data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"Failed to save classification cache: {e}")
+        return False
+
+def load_classification(drug_name, target_name):
+    """Load classification result from cache"""
+    cache_key = get_cache_key(drug_name, target_name)
+    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
+    
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+            return cache_data.get("classification")
+        except Exception as e:
+            st.error(f"Failed to load classification cache: {e}")
+            return None
+    return None
+
+def is_classification_cached(drug_name, target_name):
+    """Check if classification is cached"""
+    cache_key = get_cache_key(drug_name, target_name)
+    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
+    return os.path.exists(cache_file)
 
 # Load environment variables from .env file (optional)
 try:
@@ -2257,8 +2308,6 @@ def show_drug_search(app):
                             
                             if classified_count > 0:
                                 st.success(f"✅ **Successfully classified {classified_count}/{len(targets_to_classify)} relationships!** Complete mechanism analysis available below.")
-                                if classified_count == len(targets_to_classify):
-                                    st.balloons()  # Celebrate complete classification!
                             else:
                                 st.warning("⚠️ **Auto-classification encountered issues.** You can manually classify individual relationships below.")
                     
@@ -2739,7 +2788,11 @@ def show_drug_search(app):
                                                 # Create network graph
                                                 G = nx.Graph()
                                                 
-                                                # Add target as central node
+                                                # Determine the center node (default to target, or use clicked node)
+                                                center_key = f'network_center_{target}_{selected_drug}'
+                                                center_node = st.session_state.get(center_key, target)
+                                                
+                                                # Add target node
                                                 G.add_node(target, 
                                                           node_type='target', 
                                                           size=25, 
@@ -2764,6 +2817,14 @@ def show_drug_search(app):
                                                               description=f"Drug: {drug_name}<br>MOA: {drug['MOA']}<br>Phase: {drug['Phase']}<br>Classified: {drug['Classified']}")
                                                     G.add_edge(target, drug_name)
                                                 
+                                                # Add connections between drugs if center is a drug
+                                                if center_node != target and center_node in [drug['Drug Name'] for drug in drugs_data]:
+                                                    # Find other drugs that might be connected to this drug
+                                                    for drug in drugs_data:
+                                                        if drug['Drug Name'] != center_node:
+                                                            # Add edge between center drug and other drugs
+                                                            G.add_edge(center_node, drug['Drug Name'])
+                                                
                                                 # Get positions
                                                 pos = nx.spring_layout(G, k=4, iterations=100)
                                                 
@@ -2785,16 +2846,21 @@ def show_drug_search(app):
                                                 
                                                 # Add target node
                                                 target_x, target_y = pos[target]
+                                                target_is_center = center_node == target
+                                                target_size = 30 if target_is_center else 25
+                                                target_color = 'darkred' if target_is_center else 'red'
+                                                
                                                 fig.add_trace(go.Scatter(
                                                     x=[target_x],
                                                     y=[target_y],
                                                     mode='markers+text',
-                                                    marker=dict(size=25, color='red', symbol='diamond', line=dict(width=2, color='darkred')),
+                                                    marker=dict(size=target_size, color=target_color, symbol='diamond', 
+                                                              line=dict(width=3 if target_is_center else 2, color='black')),
                                                     text=target,
                                                     textposition="middle center",
-                                                    textfont=dict(size=12, color='white', family="Arial Black"),
+                                                    textfont=dict(size=14 if target_is_center else 12, color='white', family="Arial Black"),
                                                     hoverinfo='text',
-                                                    hovertext=f"🎯 <b>Target: {target}</b><br>Type: Biological Target<br>Connected to {len(drugs_data)} drugs",
+                                                    hovertext=f"🎯 <b>Target: {target}</b><br>Type: Biological Target<br>Connected to {len(drugs_data)} drugs<br>{'⭐ CENTER NODE' if target_is_center else ''}",
                                                     showlegend=False,
                                                     name=target
                                                 ))
@@ -2810,23 +2876,30 @@ def show_drug_search(app):
                                                         phase = node_data['phase']
                                                         classified = node_data['classified']
                                                         
+                                                        # Check if this node is the center
+                                                        is_center = center_node == node
+                                                        if is_center:
+                                                            size = max(size + 5, 25)  # Make center node larger
+                                                            color = 'purple'  # Special color for center
+                                                        
                                                         # Create detailed hover text
                                                         hover_text = f"💊 <b>Drug: {node}</b><br>"
                                                         hover_text += f"🎯 <b>Target:</b> {target}<br>"
                                                         hover_text += f"🧬 <b>MOA:</b> {moa}<br>"
                                                         hover_text += f"📊 <b>Phase:</b> {phase}<br>"
                                                         hover_text += f"✅ <b>Classified:</b> {classified}<br>"
-                                                        hover_text += f"<br>💡 <i>Click to see detailed information</i>"
+                                                        hover_text += f"{'⭐ CENTER NODE<br>' if is_center else ''}"
+                                                        hover_text += f"<br>💡 <i>Click to make this the center</i>"
                                                         
                                                         fig.add_trace(go.Scatter(
                                                             x=[x],
                                                             y=[y],
                                                             mode='markers+text',
                                                             marker=dict(size=size, color=color, symbol='circle', 
-                                                                      line=dict(width=2, color='darkblue' if color == 'blue' else 'darkgreen' if color == 'green' else 'darkorange')),
+                                                                      line=dict(width=3 if is_center else 2, color='black' if is_center else 'darkblue' if color == 'blue' else 'darkgreen' if color == 'green' else 'darkorange')),
                                                             text=node,
                                                             textposition="middle center",
-                                                            textfont=dict(size=9, color='white', family="Arial"),
+                                                            textfont=dict(size=10 if is_center else 9, color='white', family="Arial"),
                                                             hoverinfo='text',
                                                             hovertext=hover_text,
                                                             showlegend=False,
@@ -2834,14 +2907,15 @@ def show_drug_search(app):
                                                         ))
                                                 
                                                 # Update layout with better interactivity
+                                                center_info = f" | 🟣 Center: {center_node}" if center_node != target else ""
                                                 fig.update_layout(
-                                                    title=f"🕸️ Interactive Drug-Target Network: {target}",
+                                                    title=f"🕸️ Interactive Drug-Target Network: {target}{center_info}",
                                                     showlegend=False,
                                                     hovermode='closest',
                                                     margin=dict(b=60,l=5,r=5,t=60),
                                                     annotations=[
                                                         dict(
-                                                            text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs<br>💡 Click any drug node for detailed information",
+                                                            text="🔴 Target | 🟢 Classified | 🟠 Unclassified | 🟣 Center Node<br>💡 Click any node to make it the center",
                                                             showarrow=False,
                                                             xref="paper", yref="paper",
                                                             x=0.5, y=-0.15,
@@ -2878,9 +2952,22 @@ def show_drug_search(app):
                                                 if selected_points and selected_points.selection and selected_points.selection.points:
                                                     clicked_point = selected_points.selection.points[0]
                                                     if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
-                                                        clicked_drug = clicked_point.data.name
-                                                        if clicked_drug and clicked_drug != target:
-                                                            st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = clicked_drug
+                                                        clicked_node = clicked_point.data.name
+                                                        if clicked_node:
+                                                            # Store the clicked node as the new center
+                                                            st.session_state[f'network_center_{target}_{selected_drug}'] = clicked_node
+                                                            # Also store as selected drug if it's a drug node
+                                                            if clicked_node != target:
+                                                                st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = clicked_node
+                                                
+                                                # Add reset center button
+                                                col1, col2, col3 = st.columns([1, 2, 1])
+                                                with col2:
+                                                    if st.button("🔄 Reset to Target Center", key=f"reset_center_{target}_{selected_drug}"):
+                                                        # Reset center to target
+                                                        if center_key in st.session_state:
+                                                            del st.session_state[center_key]
+                                                        st.rerun()
                                                 
                                                 # Add clickable drug information section with buttons
                                                 st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
@@ -3716,6 +3803,10 @@ def show_target_search(app):
                             # Create network graph
                             G = nx.Graph()
                             
+                            # Determine the center node (default to target, or use clicked node)
+                            center_key = f'main_network_center_{selected_target}'
+                            center_node = st.session_state.get(center_key, selected_target)
+                            
                             # Add target as central node
                             G.add_node(selected_target, 
                                       node_type='target', 
@@ -3741,6 +3832,14 @@ def show_target_search(app):
                                           description=f"Drug: {drug_name}<br>MOA: {drug['drug_moa'] or 'Not specified'}<br>Phase: {drug['drug_phase'] or 'Unknown'}<br>Classified: {'Yes' if drug['is_classified'] else 'No'}")
                                 G.add_edge(selected_target, drug_name)
                             
+                            # Add connections between drugs if center is a drug
+                            if center_node != selected_target and center_node in [drug['drug_name'] for drug in target_details['drugs']]:
+                                # Find other drugs that might be connected to this drug
+                                for drug in target_details['drugs']:
+                                    if drug['drug_name'] != center_node:
+                                        # Add edge between center drug and other drugs
+                                        G.add_edge(center_node, drug['drug_name'])
+                            
                             # Get positions
                             pos = nx.spring_layout(G, k=5, iterations=150)
                             
@@ -3762,16 +3861,21 @@ def show_target_search(app):
                             
                             # Add target node
                             target_x, target_y = pos[selected_target]
+                            target_is_center = center_node == selected_target
+                            target_size = 35 if target_is_center else 30
+                            target_color = 'darkred' if target_is_center else 'red'
+                            
                             fig.add_trace(go.Scatter(
                                 x=[target_x],
                                 y=[target_y],
                                 mode='markers+text',
-                                marker=dict(size=30, color='red', symbol='diamond', line=dict(width=3, color='darkred')),
+                                marker=dict(size=target_size, color=target_color, symbol='diamond', 
+                                          line=dict(width=4 if target_is_center else 3, color='black')),
                                 text=selected_target,
                                 textposition="middle center",
-                                textfont=dict(size=14, color='white', family="Arial Black"),
+                                textfont=dict(size=16 if target_is_center else 14, color='white', family="Arial Black"),
                                 hoverinfo='text',
-                                hovertext=f"🎯 <b>Target: {selected_target}</b><br>Type: Biological Target<br>Connected to {len(target_details['drugs'])} drugs<br><br>💡 <i>This is the central target node</i>",
+                                hovertext=f"🎯 <b>Target: {selected_target}</b><br>Type: Biological Target<br>Connected to {len(target_details['drugs'])} drugs<br>{'⭐ CENTER NODE' if target_is_center else ''}<br><br>💡 <i>Click to make this the center</i>",
                                 showlegend=False,
                                 name=selected_target
                             ))
@@ -3787,23 +3891,30 @@ def show_target_search(app):
                                     phase = node_data['phase']
                                     classified = node_data['classified']
                                     
+                                    # Check if this node is the center
+                                    is_center = center_node == node
+                                    if is_center:
+                                        size = max(size + 8, 30)  # Make center node larger
+                                        color = 'purple'  # Special color for center
+                                    
                                     # Create detailed hover text
                                     hover_text = f"💊 <b>Drug: {node}</b><br>"
                                     hover_text += f"🎯 <b>Target:</b> {selected_target}<br>"
                                     hover_text += f"🧬 <b>MOA:</b> {moa}<br>"
                                     hover_text += f"📊 <b>Phase:</b> {phase}<br>"
                                     hover_text += f"✅ <b>Classified:</b> {'Yes' if classified else 'No'}<br>"
-                                    hover_text += f"<br>💡 <i>Click to see detailed information</i>"
+                                    hover_text += f"{'⭐ CENTER NODE<br>' if is_center else ''}"
+                                    hover_text += f"<br>💡 <i>Click to make this the center</i>"
                                     
                                     fig.add_trace(go.Scatter(
                                         x=[x],
                                         y=[y],
                                         mode='markers+text',
                                         marker=dict(size=size, color=color, symbol='circle', 
-                                                  line=dict(width=2, color='darkgreen' if color == 'green' else 'darkorange')),
+                                                  line=dict(width=3 if is_center else 2, color='black' if is_center else 'darkgreen' if color == 'green' else 'darkorange')),
                                         text=node,
                                         textposition="middle center",
-                                        textfont=dict(size=9, color='white', family="Arial"),
+                                        textfont=dict(size=11 if is_center else 9, color='white', family="Arial"),
                                         hoverinfo='text',
                                         hovertext=hover_text,
                                         showlegend=False,
@@ -3811,14 +3922,15 @@ def show_target_search(app):
                                     ))
                             
                             # Update layout with enhanced interactivity
+                            center_info = f" | 🟣 Center: {center_node}" if center_node != selected_target else ""
                             fig.update_layout(
-                                title=f"🕸️ Interactive Drug-Target Network: {selected_target}",
+                                title=f"🕸️ Interactive Drug-Target Network: {selected_target}{center_info}",
                                 showlegend=False,
                                 hovermode='closest',
                                 margin=dict(b=80,l=5,r=5,t=80),
                                 annotations=[
                                     dict(
-                                        text="🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs<br>💡 Click any drug node for detailed information | Hover for quick details",
+                                        text="🔴 Target | 🟢 Classified | 🟠 Unclassified | 🟣 Center Node<br>💡 Click any node to make it the center",
                                         showarrow=False,
                                         xref="paper", yref="paper",
                                         x=0.5, y=-0.2,
@@ -3855,9 +3967,22 @@ def show_target_search(app):
                             if selected_points and selected_points.selection and selected_points.selection.points:
                                 clicked_point = selected_points.selection.points[0]
                                 if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
-                                    clicked_drug = clicked_point.data.name
-                                    if clicked_drug and clicked_drug != selected_target:
-                                        st.session_state[f'selected_drug_main_network_{selected_target}'] = clicked_drug
+                                    clicked_node = clicked_point.data.name
+                                    if clicked_node:
+                                        # Store the clicked node as the new center
+                                        st.session_state[f'main_network_center_{selected_target}'] = clicked_node
+                                        # Also store as selected drug if it's a drug node
+                                        if clicked_node != selected_target:
+                                            st.session_state[f'selected_drug_main_network_{selected_target}'] = clicked_node
+                            
+                            # Add reset center button
+                            col1, col2, col3 = st.columns([1, 2, 1])
+                            with col2:
+                                if st.button("🔄 Reset to Target Center", key=f"reset_main_center_{selected_target}"):
+                                    # Reset center to target
+                                    if center_key in st.session_state:
+                                        del st.session_state[center_key]
+                                    st.rerun()
                             
                             # Add clickable drug information section with buttons
                             st.markdown("**💊 Click on any drug node above or use the buttons below to see detailed information:**")
