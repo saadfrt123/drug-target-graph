@@ -1317,12 +1317,25 @@ class DrugTargetGraphApp:
             logger.error(f"Error initializing classifier: {e}")
     
     def get_drug_target_classification(self, drug_name: str, target_name: str, force_reclassify: bool = False) -> Optional[Dict]:
-        """Get or create mechanism classification for a drug-target pair"""
+        """Get or create mechanism classification for a drug-target pair with caching"""
         if not self.classifier:
             return None
+        
+        # Check cache first (unless force reclassify)
+        if not force_reclassify:
+            cached_result = load_classification(drug_name, target_name)
+            if cached_result:
+                return cached_result
             
         try:
-            return self.classifier.classify_and_store(drug_name, target_name, force_reclassify=force_reclassify)
+            # Get classification from classifier
+            classification = self.classifier.classify_and_store(drug_name, target_name, force_reclassify=force_reclassify)
+            
+            # Save to cache if successful
+            if classification:
+                save_classification(drug_name, target_name, classification)
+            
+            return classification
         except Exception as e:
             logger.error(f"Error classifying {drug_name} -> {target_name}: {e}")
             return None
@@ -3195,10 +3208,28 @@ def show_drug_search(app):
             targets = drug_details['targets']  # Show ALL targets
             
             if targets:
+                # Determine the center node (default to drug, or use clicked node)
+                center_key = f'main_drug_network_center_{selected_drug}'
+                center_node = st.session_state.get(center_key, selected_drug)
+                
                 # Enhanced layout algorithm based on classification types
-                drug_x, drug_y = 0, 0
-                target_positions = []
-                num_targets = len(targets)
+                # If center is a target, position it at center and arrange others around it
+                if center_node != selected_drug and center_node in targets:
+                    # Center node is a target - position it at center
+                    drug_x, drug_y = 0, 0
+                    target_positions = []
+                    num_targets = len(targets)
+                    
+                    # Find the center target position
+                    center_target_x, center_target_y = 0, 0
+                    other_targets = [t for t in targets if t != center_node]
+                else:
+                    # Default: drug at center
+                    drug_x, drug_y = 0, 0
+                    target_positions = []
+                    num_targets = len(targets)
+                    center_target_x, center_target_y = None, None
+                    other_targets = targets
                 
                 # Group targets by classification type for intelligent positioning
                 primary_targets = []
@@ -3206,7 +3237,7 @@ def show_drug_search(app):
                 unknown_targets = []
                 unclassified_targets = []
                 
-                for target in targets:
+                for target in other_targets:
                     mech_info = target_mechanisms.get(target, {})
                     rel_type = mech_info.get('relationship_type', 'Unclassified')
                     
@@ -3231,7 +3262,7 @@ def show_drug_search(app):
                 ]
                 
                 # Calculate dramatic circular layout for maximum visual impact
-                total_targets = len(targets)
+                total_targets = len(other_targets)
                 
                 if total_targets <= 8:
                     # Single ring layout for few targets
@@ -3244,6 +3275,21 @@ def show_drug_search(app):
                             y = radius * math.sin(angle)
                             target_positions.append((x, y, target, group_type))
                             target_index += 1
+                
+                # Add center target if it's not the drug
+                if center_node != selected_drug and center_node in targets:
+                    # Add center target at position 0,0
+                    mech_info = target_mechanisms.get(center_node, {})
+                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                    if rel_type == 'Primary/On-Target':
+                        group_type = 'primary'
+                    elif rel_type == 'Secondary/Off-Target':
+                        group_type = 'secondary'
+                    elif rel_type == 'Unknown':
+                        group_type = 'unknown'
+                    else:
+                        group_type = 'unclassified'
+                    target_positions.append((0, 0, center_node, group_type))
                 else:
                     # Multi-ring layout for many targets - more dramatic
                     inner_radius = 5
@@ -3410,27 +3456,43 @@ def show_drug_search(app):
                         hoverinfo='skip'
                     ))
                     
+                    # Check if this is the center node
+                    is_center = center_node == target
+                    if is_center:
+                        # Highlight center node
+                        node_color = 'purple'
+                        border_color = 'black'
+                        text_color = 'white'
+                        node_size = 70
+                        text_size = 13
+                        target_hover += '<br><b>⭐ CENTER NODE</b>'
+                    else:
+                        node_size = 55
+                        text_size = 11
+                    
                     # Main target node with clean styling
                     fig.add_trace(go.Scatter(
                         x=[x], y=[y],
                         mode='markers+text',
-                        marker=dict(size=55, color=node_color, 
-                                   line=dict(color=border_color, width=3),
+                        marker=dict(size=node_size, color=node_color, 
+                                   line=dict(color=border_color, width=4 if is_center else 3),
                                    opacity=0.9),
                         text=[target],
                         textposition='middle center',
-                        textfont=dict(size=11, color=text_color, family='Arial'),
+                        textfont=dict(size=text_size, color=text_color, family='Arial'),
                         showlegend=False,
                         hovertemplate=target_hover + '<extra></extra>',
                         hoverinfo='text'
                     ))
 
                 # Enhanced CENTRAL drug node with MASSIVE dramatic effect
+                drug_is_center = center_node == selected_drug
+                center_indicator = '<br><b>⭐ CENTER NODE</b>' if drug_is_center else ''
                 drug_hover = f"""
                 <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
                 <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
                 <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
-                <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>
+                <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>{center_indicator}
                 """
 
                 # Drug node subtle glow effect - single layer
@@ -3443,15 +3505,20 @@ def show_drug_search(app):
                 ))
 
                 # Main drug node - prominent but not overwhelming
+                drug_color = 'purple' if drug_is_center else '#3498DB'
+                drug_border_color = 'black' if drug_is_center else '#2980B9'
+                drug_size = 85 if drug_is_center else 70
+                drug_text_size = 16 if drug_is_center else 14
+                
                 fig.add_trace(go.Scatter(
                     x=[drug_x], y=[drug_y],
                     mode='markers+text',
-                    marker=dict(size=70, color='#3498DB',  # Professional blue
-                               line=dict(color='#2980B9', width=4),  # Darker blue border
+                    marker=dict(size=drug_size, color=drug_color,
+                               line=dict(color=drug_border_color, width=5 if drug_is_center else 4),
                                opacity=0.9),
                     text=[selected_drug.upper()],
                     textposition='middle center',
-                    textfont=dict(size=14, color='white', family='Arial'),
+                    textfont=dict(size=drug_text_size, color='white', family='Arial'),
                     name='💊 Drug',
                     showlegend=True,
                     hovertemplate=drug_hover + '<extra></extra>',
@@ -3459,9 +3526,10 @@ def show_drug_search(app):
                 ))
 
                 # Clean, professional layout
+                center_info = f" | 🟣 Center: {center_node}" if center_node != selected_drug else ""
                 fig.update_layout(
                     title=dict(
-                        text=f"Drug-Target Network: {selected_drug}",
+                        text=f"🕸️ Interactive Drug-Target Network: {selected_drug}{center_info}",
                         font=dict(size=20, color='#2C3E50', family='Arial'),
                         x=0.5
                     ),
@@ -3490,10 +3558,48 @@ def show_drug_search(app):
                         zeroline=False, 
                         showticklabels=False,
                         range=[-10, 10]  # Appropriate range
-                    )
+                    ),
+                    annotations=[
+                        dict(
+                            text="🟣 Purple = Center Node | 💡 Click any node to make it the center",
+                            showarrow=False,
+                            xref="paper", yref="paper",
+                            x=0.5, y=-0.1,
+                            xanchor='center', yanchor='top',
+                            font=dict(color='gray', size=12),
+                            bgcolor='rgba(255,255,255,0.8)',
+                            bordercolor='gray',
+                            borderwidth=1
+                        )
+                    ]
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                # Display the interactive chart with click handling
+                selected_points = st.plotly_chart(
+                    fig, 
+                    use_container_width=True, 
+                    key=f"main_drug_network_{selected_drug}",
+                    on_select="rerun"
+                )
+                
+                # Handle node selection from Plotly chart
+                if selected_points and selected_points.selection and selected_points.selection.points:
+                    clicked_point = selected_points.selection.points[0]
+                    if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
+                        clicked_node = clicked_point.data.name
+                        if clicked_node:
+                            # Store the clicked node as the new center
+                            st.session_state[f'main_drug_network_center_{selected_drug}'] = clicked_node
+                
+                # Add reset center button
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("🔄 Reset to Drug Center", key=f"reset_main_drug_center_{selected_drug}"):
+                        # Reset center to drug
+                        center_key = f'main_drug_network_center_{selected_drug}'
+                        if center_key in st.session_state:
+                            del st.session_state[center_key]
+                        st.rerun()
 
                 # Clean summary
                 st.markdown("### 📊 Network Analysis")
