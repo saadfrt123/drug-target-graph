@@ -2401,8 +2401,8 @@ def show_drug_search(app):
                                         st.warning(f"⚠️ Tried {len(smiles_list)} SMILES variants, none could be parsed")
                                         # Show all the SMILES that were tried
                                         st.markdown("##### 🔍 See all SMILES variants tried")
-                                            for i, s in enumerate(smiles_list):
-                                                st.code(f"{i+1}. {s}")
+                                        for i, s in enumerate(smiles_list):
+                                            st.code(f"{i+1}. {s}")
                                     
                                     # Continue with the working molecule
                                     if mol is not None:
