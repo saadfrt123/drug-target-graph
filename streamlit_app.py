@@ -2962,17 +2962,14 @@ def show_drug_search(app):
                                                     on_select="rerun"
                                                 )
                                                 
-                                                # Handle node selection from Plotly chart
-                                                if selected_points and selected_points.selection and selected_points.selection.points:
-                                                    clicked_point = selected_points.selection.points[0]
-                                                    if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
-                                                        clicked_node = clicked_point.data.name
-                                                        if clicked_node:
-                                                            # Store the clicked node as the new center
-                                                            st.session_state[f'network_center_{target}_{selected_drug}'] = clicked_node
-                                                            # Also store as selected drug if it's a drug node
-                                                            if clicked_node != target:
-                                                                st.session_state[f'selected_drug_network_{target}_{selected_drug}'] = clicked_node
+                                                # Add clickable drug selection buttons below the graph
+                                                st.markdown("**🎯 Click a drug below to center the network on it:**")
+                                                drug_cols = st.columns(min(4, len(drugs_data)))
+                                                for i, (drug_name, drug_data) in enumerate(drugs_data.items()):
+                                                    with drug_cols[i % len(drug_cols)]:
+                                                        if st.button(f"🎯 {drug_name}", key=f"center_drug_{target}_{selected_drug}_{drug_name}"):
+                                                            st.session_state[f'network_center_{target}_{selected_drug}'] = drug_name
+                                                            st.rerun()
                                                 
                                                 # Add reset center button
                                                 col1, col2, col3 = st.columns([1, 2, 1])
@@ -3582,14 +3579,14 @@ def show_drug_search(app):
                     on_select="rerun"
                 )
                 
-                # Handle node selection from Plotly chart
-                if selected_points and selected_points.selection and selected_points.selection.points:
-                    clicked_point = selected_points.selection.points[0]
-                    if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
-                        clicked_node = clicked_point.data.name
-                        if clicked_node:
-                            # Store the clicked node as the new center
-                            st.session_state[f'main_drug_network_center_{selected_drug}'] = clicked_node
+                # Add clickable target selection buttons below the graph
+                st.markdown("**🎯 Click a target below to center the network on it:**")
+                target_cols = st.columns(min(4, len(targets_data)))
+                for i, (target_name, target_data) in enumerate(targets_data.items()):
+                    with target_cols[i % len(target_cols)]:
+                        if st.button(f"🎯 {target_name}", key=f"center_target_{selected_drug}_{target_name}"):
+                            st.session_state[f'main_drug_network_center_{selected_drug}'] = target_name
+                            st.rerun()
                 
                 # Add reset center button
                 col1, col2, col3 = st.columns([1, 2, 1])
@@ -4070,17 +4067,14 @@ def show_target_search(app):
                                 on_select="rerun"
                             )
                             
-                            # Handle node selection from Plotly chart
-                            if selected_points and selected_points.selection and selected_points.selection.points:
-                                clicked_point = selected_points.selection.points[0]
-                                if hasattr(clicked_point, 'data') and hasattr(clicked_point.data, 'name'):
-                                    clicked_node = clicked_point.data.name
-                                    if clicked_node:
-                                        # Store the clicked node as the new center
-                                        st.session_state[f'main_network_center_{selected_target}'] = clicked_node
-                                        # Also store as selected drug if it's a drug node
-                                        if clicked_node != selected_target:
-                                            st.session_state[f'selected_drug_main_network_{selected_target}'] = clicked_node
+                            # Add clickable drug selection buttons below the graph
+                            st.markdown("**🎯 Click a drug below to center the network on it:**")
+                            drug_cols = st.columns(min(4, len(drugs_data)))
+                            for i, (drug_name, drug_data) in enumerate(drugs_data.items()):
+                                with drug_cols[i % len(drug_cols)]:
+                                    if st.button(f"🎯 {drug_name}", key=f"center_drug_main_{selected_target}_{drug_name}"):
+                                        st.session_state[f'main_network_center_{selected_target}'] = drug_name
+                                        st.rerun()
                             
                             # Add reset center button
                             col1, col2, col3 = st.columns([1, 2, 1])
