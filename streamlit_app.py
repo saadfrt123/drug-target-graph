@@ -2359,8 +2359,8 @@ def show_drug_search(app):
                         
                         # Show SMILES notation
                         st.markdown("#### 📝 SMILES Notation")
-                            st.code(drug_details['drug_info']['smiles'], language='text')
-                            st.caption("SMILES notation - textual representation of the molecular structure")
+                        st.code(drug_details['drug_info']['smiles'], language='text')
+                        st.caption("SMILES notation - textual representation of the molecular structure")
                         
                         # 3D Molecular Visualization
                         st.markdown("#### 🌐 **Interactive 3D Molecular Structure**")
