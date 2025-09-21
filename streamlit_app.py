@@ -2711,9 +2711,11 @@ class DrugTargetGraphApp:
         cache_key = f"{drug_name}_{target_name}"
         if cache_key in self._classification_cache:
             return self._classification_cache[cache_key]
-        
-        persistent_key = get_cache_key(drug_name, target_name)
-        return load_from_cache(persistent_key)
+    
+    def is_cached(self, drug_name: str, target_name: str) -> bool:
+        """Check if classification is cached"""
+        cache_key = f"{drug_name}_{target_name}"
+        return cache_key in self._classification_cache
     
     def background_classify_targets(self, drug_name: str, targets: List[str]) -> None:
         """Classify targets in background thread"""
