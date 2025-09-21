@@ -10,9 +10,60 @@ from neo4j import GraphDatabase
 
 import logging
 
+import numpy as np
+
+import math
+
+import os
+
+import json
+
+import hashlib
+
+import pickle
+
+import threading
+
+import time
+
 from typing import List, Dict, Any
 
 
+
+# Cache management for fast network interactions
+CACHE_DIR = "network_cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+def get_cache_key(drug_name: str, target_name: str = None) -> str:
+    """Generate a unique cache key for drug-target classification"""
+    if target_name:
+        return hashlib.md5(f"{drug_name}_{target_name}".encode()).hexdigest()
+    return hashlib.md5(f"drug_{drug_name}".encode()).hexdigest()
+
+def save_to_cache(key: str, data: Any) -> None:
+    """Save data to cache file"""
+    try:
+        cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
+        with open(cache_file, 'wb') as f:
+            pickle.dump(data, f)
+    except Exception as e:
+        st.error(f"Error saving to cache: {e}")
+
+def load_from_cache(key: str) -> Any:
+    """Load data from cache file"""
+    try:
+        cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
+        if os.path.exists(cache_file):
+            with open(cache_file, 'rb') as f:
+                return pickle.load(f)
+    except Exception as e:
+        st.error(f"Error loading from cache: {e}")
+    return None
+
+def is_cached(key: str) -> bool:
+    """Check if data is cached"""
+    cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
+    return os.path.exists(cache_file)
 
 # Force light theme
 
@@ -1108,7 +1159,6 @@ class DrugTargetGraphApp:
         """Initialize the Streamlit app"""
 
         # Use session state to persist connection
-
         if 'driver' not in st.session_state:
 
             st.session_state.driver = None
@@ -1126,6 +1176,15 @@ class DrugTargetGraphApp:
         self.driver = st.session_state.driver
 
         self.database = st.session_state.database
+        
+        # Initialize caching and background processing
+        if 'classification_cache' not in st.session_state:
+            st.session_state.classification_cache = {}
+        if 'background_threads' not in st.session_state:
+            st.session_state.background_threads = {}
+            
+        self._classification_cache = st.session_state.classification_cache
+        self._background_threads = st.session_state.background_threads
 
         self.classifier = st.session_state.classifier
 
@@ -2615,26 +2674,135 @@ class DrugTargetGraphApp:
     
 
     def get_drug_target_classification(self, drug_name: str, target_name: str, force_reclassify: bool = False) -> Optional[Dict]:
-
-        """Get or create mechanism classification for a drug-target pair"""
-
+        """Get or create mechanism classification for a drug-target pair with enhanced caching"""
         if not self.classifier:
-
             return None
-
             
-
+        # Check in-memory cache first
+        cache_key = f"{drug_name}_{target_name}"
+        if not force_reclassify and cache_key in self._classification_cache:
+            return self._classification_cache[cache_key]
+            
+        # Check persistent cache
+        persistent_key = get_cache_key(drug_name, target_name)
+        if not force_reclassify:
+            cached_data = load_from_cache(persistent_key)
+            if cached_data:
+                self._classification_cache[cache_key] = cached_data
+                return cached_data
+        
         try:
-
-            return self.classifier.classify_and_store(drug_name, target_name, force_reclassify=force_reclassify)
-
+            # Get classification from API
+            classification = self.classifier.classify_and_store(drug_name, target_name, force_reclassify=force_reclassify)
+            
+            # Save to both caches
+            if classification:
+                self._classification_cache[cache_key] = classification
+                save_to_cache(persistent_key, classification)
+            
+            return classification
+            
         except Exception as e:
-
             logger.error(f"Error classifying {drug_name} -> {target_name}: {e}")
-
             return None
-
     
+    def get_cached_classification(self, drug_name: str, target_name: str) -> Optional[Dict]:
+        """Get classification from cache only (no API call)"""
+        cache_key = f"{drug_name}_{target_name}"
+        if cache_key in self._classification_cache:
+            return self._classification_cache[cache_key]
+        
+        persistent_key = get_cache_key(drug_name, target_name)
+        return load_from_cache(persistent_key)
+    
+    def background_classify_targets(self, drug_name: str, targets: List[str]) -> None:
+        """Classify targets in background thread"""
+        thread_key = f"classify_{drug_name}"
+        
+        # Don't start if already running
+        if thread_key in self._background_threads:
+            return
+            
+        def classify_worker():
+            try:
+                for target in targets:
+                    # Check if already cached
+                    if self.get_cached_classification(drug_name, target):
+                        continue
+                    
+                    # Classify in background
+                    classification = self.classifier.classify_and_store(drug_name, target)
+                    if classification:
+                        cache_key = f"{drug_name}_{target}"
+                        self._classification_cache[cache_key] = classification
+                        persistent_key = get_cache_key(drug_name, target)
+                        save_to_cache(persistent_key, classification)
+                        
+                # Remove thread reference when done
+                if thread_key in self._background_threads:
+                    del self._background_threads[thread_key]
+                    
+            except Exception as e:
+                st.error(f"Background classification error: {e}")
+                if thread_key in self._background_threads:
+                    del self._background_threads[thread_key]
+        
+        # Start background thread
+        thread = threading.Thread(target=classify_worker, daemon=True)
+        thread.start()
+        self._background_threads[thread_key] = thread
+    
+    def get_target_network_data(self, target_name: str) -> Dict[str, Any]:
+        """Get network data for a target-centered view"""
+        if not self.driver:
+            return None
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                # Get all drugs targeting this target
+                result = session.run("""
+                    MATCH (d:Drug)-[:TARGETS]->(t:Target {name: $target_name})
+                    RETURN d.name as drug, d.moa as moa, d.phase as phase
+                    ORDER BY d.name
+                """, target_name=target_name)
+                
+                drugs = result.data()
+                
+                # Get mechanism information for each drug-target pair
+                target_mechanisms = {}
+                for drug in drugs:
+                    drug_name = drug['drug']
+                    classification = self.get_cached_classification(drug_name, target_name)
+                    if classification:
+                        target_mechanisms[drug_name] = {
+                            'mechanism': classification.get('mechanism', 'Unknown'),
+                            'relationship_type': classification.get('relationship_type', 'Unknown'),
+                            'target_class': classification.get('target_class', 'Unknown'),
+                            'target_subclass': classification.get('target_subclass', 'Unknown'),
+                            'confidence': classification.get('confidence', 0),
+                            'reasoning': classification.get('reasoning', 'No details available'),
+                            'classified': True
+                        }
+                    else:
+                        target_mechanisms[drug_name] = {
+                            'mechanism': 'Unclassified',
+                            'relationship_type': 'Unclassified',
+                            'target_class': 'Unknown',
+                            'target_subclass': 'Unknown',
+                            'confidence': 0,
+                            'reasoning': 'No details available',
+                            'classified': False
+                        }
+                
+                return {
+                    'target': target_name,
+                    'drugs': drugs,
+                    'target_mechanisms': target_mechanisms
+                }
+                
+        except Exception as e:
+            st.error(f"Error getting target network data: {e}")
+            return None
 
     def get_top_drugs_by_targets(self, limit: int = 10) -> List[Dict]:
 
@@ -5881,90 +6049,185 @@ def show_drug_search(app):
 
             
 
-            # Simple drug-centered view: show ALL targets
-            targets = drug_details['targets']  # Show ALL targets
+            # Interactive network with reorientation capability
+            # Check if a target was clicked to center the network
+            center_key = f'interactive_network_center_{selected_drug}'
+            center_node = st.session_state.get(center_key, selected_drug)
+            
+            # Start background classification for all targets
+            app.background_classify_targets(selected_drug, drug_details['targets'])
+            
+            if center_node == selected_drug:
+                # Drug-centered view: show drug in center with its targets
+                targets = drug_details['targets']  # Show ALL targets
+                network_data = None
+            else:
+                # Target-centered view: show target in center with all drugs targeting it
+                network_data = app.get_target_network_data(center_node)
+                if network_data:
+                    targets = [center_node]  # The centered target
+                else:
+                    targets = drug_details['targets']  # Fallback to drug view
+                    center_node = selected_drug
+                    st.session_state[center_key] = selected_drug
 
             if targets:
 
                 # Enhanced layout algorithm based on classification types
-                drug_x, drug_y = 0, 0
-                target_positions = []
-                num_targets = len(targets)
-
-                
-
-                # Group targets by classification type for intelligent positioning
-                primary_targets = []
-                secondary_targets = []
-                unknown_targets = []
-                unclassified_targets = []
-                
-                for target in targets:
-                    mech_info = target_mechanisms.get(target, {})
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
+                if center_node == selected_drug:
+                    # Drug-centered view: drug in center, targets around it
+                    drug_x, drug_y = 0, 0
+                    target_positions = []
+                    num_targets = len(targets)
                     
-                    if rel_type == 'Primary/On-Target':
-                        primary_targets.append(target)
-                    elif rel_type == 'Secondary/Off-Target':
-                        secondary_targets.append(target)
-                    elif rel_type == 'Unknown':
-                        unknown_targets.append(target)
-                    else:
-                        unclassified_targets.append(target)
+                    # Group targets by classification type for intelligent positioning
+                    primary_targets = []
+                    secondary_targets = []
+                    unknown_targets = []
+                    unclassified_targets = []
+                    
+                    for target in targets:
+                        mech_info = target_mechanisms.get(target, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        
+                        if rel_type == 'Primary/On-Target':
+                            primary_targets.append(target)
+                        elif rel_type == 'Secondary/Off-Target':
+                            secondary_targets.append(target)
+                        elif rel_type == 'Unknown':
+                            unknown_targets.append(target)
+                        else:
+                            unclassified_targets.append(target)
+                else:
+                    # Target-centered view: target in center, drugs around it
+                    target_x, target_y = 0, 0
+                    drug_positions = []
+                    num_drugs = len(network_data['drugs']) if network_data else 0
+                    
+                    # Group drugs by classification type for intelligent positioning
+                    primary_drugs = []
+                    secondary_drugs = []
+                    unknown_drugs = []
+                    unclassified_drugs = []
+                    
+                    if network_data:
+                        for drug in network_data['drugs']:
+                            drug_name = drug['drug']
+                            mech_info = network_data['target_mechanisms'].get(drug_name, {})
+                            rel_type = mech_info.get('relationship_type', 'Unclassified')
+                            
+                            if rel_type == 'Primary/On-Target':
+                                primary_drugs.append(drug_name)
+                            elif rel_type == 'Secondary/Off-Target':
+                                secondary_drugs.append(drug_name)
+                            elif rel_type == 'Unknown':
+                                unknown_drugs.append(drug_name)
+                            else:
+                                unclassified_drugs.append(drug_name)
 
                 
 
                 # Enhanced vivid circular layout with dramatic visual impact
-                target_positions = []
-                
-                # Group all targets by type for intelligent positioning
-                all_target_groups = [
-                    (primary_targets, 'primary'),
-                    (secondary_targets, 'secondary'), 
-                    (unknown_targets, 'unknown'),
-                    (unclassified_targets, 'unclassified')
-                ]
-                
-                # Calculate dramatic circular layout for maximum visual impact
-                total_targets = len(targets)
+                if center_node == selected_drug:
+                    # Drug-centered view: position targets around drug
+                    target_positions = []
+                    
+                    # Group all targets by type for intelligent positioning
+                    all_target_groups = [
+                        (primary_targets, 'primary'),
+                        (secondary_targets, 'secondary'), 
+                        (unknown_targets, 'unknown'),
+                        (unclassified_targets, 'unclassified')
+                    ]
+                    
+                    # Calculate dramatic circular layout for maximum visual impact
+                    total_targets = len(targets)
 
-                
+                    if total_targets <= 8:
+                        # Single ring layout for few targets
+                        radius = 6
+                    else:
+                        # Multi-ring layout for many targets
+                        inner_radius = 5
+                        outer_radius = 9
+                        targets_per_ring = min(10, total_targets // 2)
 
-                if total_targets <= 8:
-                    # Single ring layout for few targets
-                    radius = 6
-                else:
-                    # Multi-ring layout for many targets
-                    inner_radius = 5
-                    outer_radius = 9
-                    targets_per_ring = min(10, total_targets // 2)
+                    target_index = 0
 
-                target_index = 0
-
-                for target_group, group_type in all_target_groups:
-                    for target in target_group:
-                        if total_targets <= 8:
-                            # Single ring layout
-                            angle = 2 * math.pi * target_index / total_targets
-                            x = radius * math.cos(angle)
-                            y = radius * math.sin(angle)
-                        else:
-                            # Multi-ring layout
-                            if target_index < targets_per_ring:
-                                # Inner ring
-                                angle = 2 * math.pi * target_index / targets_per_ring
-                                x = inner_radius * math.cos(angle)
-                                y = inner_radius * math.sin(angle)
+                    for target_group, group_type in all_target_groups:
+                        for target in target_group:
+                            if total_targets <= 8:
+                                # Single ring layout
+                                angle = 2 * math.pi * target_index / total_targets
+                                x = radius * math.cos(angle)
+                                y = radius * math.sin(angle)
                             else:
-                                # Outer ring
-                                outer_index = target_index - targets_per_ring
-                                remaining_targets = total_targets - targets_per_ring
-                                angle = 2 * math.pi * outer_index / remaining_targets
-                                x = outer_radius * math.cos(angle)
-                                y = outer_radius * math.sin(angle)
-                        
-                        target_positions.append((x, y, target, group_type))
-                        target_index += 1
+                                # Multi-ring layout
+                                if target_index < targets_per_ring:
+                                    # Inner ring
+                                    angle = 2 * math.pi * target_index / targets_per_ring
+                                    x = inner_radius * math.cos(angle)
+                                    y = inner_radius * math.sin(angle)
+                                else:
+                                    # Outer ring
+                                    outer_index = target_index - targets_per_ring
+                                    remaining_targets = total_targets - targets_per_ring
+                                    angle = 2 * math.pi * outer_index / remaining_targets
+                                    x = outer_radius * math.cos(angle)
+                                    y = outer_radius * math.sin(angle)
+                            
+                            target_positions.append((x, y, target, group_type))
+                            target_index += 1
+                else:
+                    # Target-centered view: position drugs around target
+                    drug_positions = []
+                    
+                    # Group all drugs by type for intelligent positioning
+                    all_drug_groups = [
+                        (primary_drugs, 'primary'),
+                        (secondary_drugs, 'secondary'), 
+                        (unknown_drugs, 'unknown'),
+                        (unclassified_drugs, 'unclassified')
+                    ]
+                    
+                    # Calculate dramatic circular layout for maximum visual impact
+                    total_drugs = len(network_data['drugs']) if network_data else 0
+
+                    if total_drugs <= 8:
+                        # Single ring layout for few drugs
+                        radius = 6
+                    else:
+                        # Multi-ring layout for many drugs
+                        inner_radius = 5
+                        outer_radius = 9
+                        drugs_per_ring = min(10, total_drugs // 2)
+
+                    drug_index = 0
+
+                    for drug_group, group_type in all_drug_groups:
+                        for drug in drug_group:
+                            if total_drugs <= 8:
+                                # Single ring layout
+                                angle = 2 * math.pi * drug_index / total_drugs
+                                x = radius * math.cos(angle)
+                                y = radius * math.sin(angle)
+                            else:
+                                # Multi-ring layout
+                                if drug_index < drugs_per_ring:
+                                    # Inner ring
+                                    angle = 2 * math.pi * drug_index / drugs_per_ring
+                                    x = inner_radius * math.cos(angle)
+                                    y = inner_radius * math.sin(angle)
+                                else:
+                                    # Outer ring
+                                    outer_index = drug_index - drugs_per_ring
+                                    remaining_drugs = total_drugs - drugs_per_ring
+                                    angle = 2 * math.pi * outer_index / remaining_drugs
+                                    x = outer_radius * math.cos(angle)
+                                    y = outer_radius * math.sin(angle)
+                            
+                            drug_positions.append((x, y, drug, group_type))
+                            drug_index += 1
 
                 # Create the VIVID, dramatic plot
 
@@ -5977,41 +6240,41 @@ def show_drug_search(app):
                 edge_traces = {}  # Group edges by type for legend
 
                 
-                # Drug-centered view: create edges from drug to targets
-                for x, y, target, ring_type in target_positions:
-                    # Get comprehensive mechanism info for this target
-                    mech_info = target_mechanisms.get(target, {})
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    target_class = mech_info.get('target_class', 'Unknown')
-                    target_subclass = mech_info.get('target_subclass', 'Unknown')
-                    confidence = mech_info.get('confidence', 0)
-                    reasoning = mech_info.get('reasoning', 'No details available')
-                    classified = mech_info.get('classified', False)
+                # Create edges based on current view
+                if center_node == selected_drug:
+                    # Drug-centered view: create edges from drug to targets
+                    for x, y, target, ring_type in target_positions:
+                        # Get comprehensive mechanism info for this target
+                        mech_info = target_mechanisms.get(target, {})
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        target_class = mech_info.get('target_class', 'Unknown')
+                        target_subclass = mech_info.get('target_subclass', 'Unknown')
+                        confidence = mech_info.get('confidence', 0)
+                        reasoning = mech_info.get('reasoning', 'No details available')
+                        classified = mech_info.get('classified', False)
 
                     
 
-                    # Clean, professional color scheme
-
-                    if rel_type == 'Primary/On-Target':
-                        edge_color = '#27AE60'  # Professional green
-                        edge_width = 4
-                        priority = 'Primary Effect'
-                        node_color = '#2ECC71'  # Emerald green
-                        glow_color = 'rgba(46, 204, 113, 0.2)'
-                    elif rel_type == 'Secondary/Off-Target':
-                        edge_color = '#E67E22'  # Professional orange
-                        edge_width = 3
-                        priority = 'Secondary Effect'
-                        node_color = '#F39C12'  # Orange
-                        glow_color = 'rgba(243, 156, 18, 0.2)'
-                    else:  # Unknown or Unclassified
-                        edge_color = '#7F8C8D'  # Professional gray
-                        edge_width = 2
-                        priority = 'Under Analysis'
-
-                        node_color = '#95A5A6'  # Light gray
-                        glow_color = 'rgba(149, 165, 166, 0.2)'
+                        # Clean, professional color scheme
+                        if rel_type == 'Primary/On-Target':
+                            edge_color = '#27AE60'  # Professional green
+                            edge_width = 4
+                            priority = 'Primary Effect'
+                            node_color = '#2ECC71'  # Emerald green
+                            glow_color = 'rgba(46, 204, 113, 0.2)'
+                        elif rel_type == 'Secondary/Off-Target':
+                            edge_color = '#E67E22'  # Professional orange
+                            edge_width = 3
+                            priority = 'Secondary Effect'
+                            node_color = '#F39C12'  # Orange
+                            glow_color = 'rgba(243, 156, 18, 0.2)'
+                        else:  # Unknown or Unclassified
+                            edge_color = '#7F8C8D'  # Professional gray
+                            edge_width = 2
+                            priority = 'Under Analysis'
+                            node_color = '#95A5A6'  # Light gray
+                            glow_color = 'rgba(149, 165, 166, 0.2)'
 
                     
 
@@ -6087,13 +6350,79 @@ def show_drug_search(app):
                             hoverinfo='text'
 
                         ))
+                else:
+                    # Target-centered view: create edges from target to drugs
+                    for x, y, drug, ring_type in drug_positions:
+                        # Get drug info
+                        drug_info = next((d for d in network_data['drugs'] if d['drug'] == drug), {})
+                        moa = drug_info.get('moa', 'Unknown')
+                        phase = drug_info.get('phase', 'Unknown')
+                        
+                        # Get mechanism info
+                        mech_info = network_data['target_mechanisms'].get(drug, {})
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        confidence = mech_info.get('confidence', 0)
+                        
+                        # Simple classification based on phase and mechanism
+                        if rel_type == 'Primary/On-Target':
+                            edge_color = '#27AE60'  # Professional green
+                            edge_width = 4
+                            priority = 'Primary Effect'
+                            node_color = '#2ECC71'  # Emerald green
+                            glow_color = 'rgba(46, 204, 113, 0.2)'
+                        elif rel_type == 'Secondary/Off-Target':
+                            edge_color = '#E67E22'  # Professional orange
+                            edge_width = 3
+                            priority = 'Secondary Effect'
+                            node_color = '#F39C12'  # Orange
+                            glow_color = 'rgba(243, 156, 18, 0.2)'
+                        else:
+                            edge_color = '#7F8C8D'  # Professional gray
+                            edge_width = 2
+                            priority = 'Under Analysis'
+                            node_color = '#95A5A6'  # Light gray
+                            glow_color = 'rgba(149, 165, 166, 0.2)'
+                        
+                        # Enhanced hover information
+                        hover_text = f"""
+                        <b style="font-size:16px; color:{edge_color}">{drug}</b><br>
+                        <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                        <b>MOA:</b> <span style="color:white">{moa}</span><br>
+                        <b>Phase:</b> <span style="color:gold">{phase}</span><br>
+                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span>
+                        """
+                        
+                        # Add subtle glow effect
+                        fig.add_trace(go.Scatter(
+                            x=[target_x, x], y=[target_y, y],
+                            mode='lines',
+                            line=dict(color=glow_color, width=edge_width + 2),
+                            showlegend=False,
+                            hoverinfo='skip'
+                        ))
+                        
+                        # Main connection line
+                        fig.add_trace(go.Scatter(
+                            x=[target_x, x], y=[target_y, y],
+                            mode='lines',
+                            line=dict(color=edge_color, width=edge_width),
+                            name=priority if priority not in edge_traces else '',
+                            showlegend=priority not in edge_traces,
+                            legendgroup=priority,
+                            hovertemplate=hover_text + '<extra></extra>',
+                            hoverinfo='text'
+                        ))
+                        edge_traces[priority] = True
 
-                # Enhanced VIVID target nodes with dramatic glow effects
-                for x, y, target, ring_type in target_positions:
-                    mech_info = target_mechanisms.get(target, {})
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
-                    confidence = mech_info.get('confidence', 0)
+                # Enhanced VIVID nodes with dramatic glow effects
+                if center_node == selected_drug:
+                    # Drug-centered view: show target nodes
+                    for x, y, target, ring_type in target_positions:
+                        mech_info = target_mechanisms.get(target, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        confidence = mech_info.get('confidence', 0)
 
                     
 
@@ -6296,7 +6625,72 @@ def show_drug_search(app):
 
 
 
-                st.plotly_chart(fig, use_container_width=True)
+                # Make the network interactive with click events
+                selected_points = st.plotly_chart(
+                    fig, 
+                    use_container_width=True,
+                    key=f"interactive_network_{selected_drug}",
+                    on_select="rerun"
+                )
+                
+                # Handle node clicks for reorientation
+                if selected_points and hasattr(selected_points, 'selection') and selected_points.selection.points:
+                    clicked_point = selected_points.selection.points[0]
+                    if 'text' in clicked_point:
+                        clicked_text = clicked_point.text
+                        if center_node == selected_drug:
+                            # In drug view, clicking a target should center on that target
+                            if clicked_text in targets:
+                                st.session_state[center_key] = clicked_text
+                                st.success(f"🎯 Centering network on target: {clicked_text}")
+                                st.rerun()
+                        else:
+                            # In target view, clicking a drug should center on that drug
+                            if network_data and clicked_text in [d['drug'] for d in network_data['drugs']]:
+                                st.session_state[center_key] = clicked_text
+                                st.success(f"💊 Centering network on drug: {clicked_text}")
+                                st.rerun()
+                
+                # Add interactive buttons for manual reorientation
+                st.markdown("### 🎮 Interactive Controls")
+                
+                if center_node == selected_drug:
+                    # Drug-centered view: show target buttons
+                    st.markdown("**🎯 Click a target below to center the network on it:**")
+                    if targets:
+                        target_cols = st.columns(min(4, len(targets)))
+                        for i, target in enumerate(targets):
+                            with target_cols[i % len(target_cols)]:
+                                if st.button(f"🎯 {target}", key=f"center_target_{selected_drug}_{target}_{i}"):
+                                    st.session_state[center_key] = target
+                                    st.success(f"🎯 Centering network on target: {target}")
+                                    st.rerun()
+                    else:
+                        st.info("No targets found for this drug")
+                else:
+                    # Target-centered view: show drug buttons
+                    st.markdown(f"**🎯 Currently centered on: {center_node}**")
+                    st.markdown("**💊 Click a drug below to center the network on it:**")
+                    if network_data and network_data['drugs']:
+                        drug_cols = st.columns(min(4, len(network_data['drugs'])))
+                        for i, drug in enumerate(network_data['drugs']):
+                            with drug_cols[i % len(drug_cols)]:
+                                drug_name = drug['drug']
+                                button_text = f"💊 {drug_name}" if drug_name != selected_drug else f"⭐ {drug_name} (Original)"
+                                if st.button(button_text, key=f"center_drug_{selected_drug}_{drug_name}_{i}"):
+                                    st.session_state[center_key] = drug_name
+                                    st.success(f"💊 Centering network on drug: {drug_name}")
+                                    st.rerun()
+                    else:
+                        st.info("No drugs found for this target")
+                
+                # Add reset button
+                reset_text = "🔄 Reset to Drug Center" if center_node != selected_drug else "🔄 Reset Network"
+                if st.button(reset_text, key=f"reset_interactive_network_{selected_drug}"):
+                    if center_key in st.session_state:
+                        del st.session_state[center_key]
+                    st.success("🔄 Reset to drug center")
+                    st.rerun()
 
                 # Clean summary
 
