@@ -4491,7 +4491,7 @@ def show_drug_search(app):
 
                                 if classified_count == len(targets_to_classify):
 
-                                    st.balloons()  # Celebrate complete classification!
+                                    st.success("🎉 **All classifications completed successfully!**")
 
                             else:
 
@@ -6895,16 +6895,15 @@ def show_target_search(app):
                             # Update layout with interactive settings
                             if center_node == selected_target:
                                 title_text = f"🕸️ Target-Centered Network: {selected_target}"
-                                legend_text = "🔴 Target (Center) | 🟢 Classified Drugs | 🟠 Unclassified Drugs | 💡 Click any node to center the network!"
+                                legend_text = "🔴 Target (Center) | 🟢 Classified Drugs | 🟠 Unclassified Drugs | 💡 Use buttons below to center on different nodes!"
                             else:
                                 title_text = f"🕸️ Drug-Centered Network: {center_node} → {selected_target}"
-                                legend_text = "⭐ Drug (Center) | 🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs | 💡 Click any node to center the network!"
+                                legend_text = "⭐ Drug (Center) | 🔴 Target | 🟢 Classified Drugs | 🟠 Unclassified Drugs | 💡 Use buttons below to center on different nodes!"
                             
                             fig.update_layout(
                                 title=title_text,
                                 showlegend=False,
                                 hovermode='closest',
-                                clickmode='event+select',
                                 dragmode='pan',
                                 margin=dict(b=40,l=5,r=5,t=60),
                                 annotations=[
@@ -6923,23 +6922,14 @@ def show_target_search(app):
                                 plot_bgcolor='white'
                             )
                             
-                            # Display the interactive chart with click handling
-                            selected_points = st.plotly_chart(
+                            # Display the interactive chart
+                            # Note: Streamlit's Plotly integration doesn't support direct node click handling
+                            # We'll use the buttons below for node selection
+                            st.plotly_chart(
                                 fig, 
                                 use_container_width=True, 
-                                key=f"target_network_{selected_target}",
-                                on_select="rerun"
+                                key=f"target_network_{selected_target}"
                             )
-                            
-                            # Handle node clicks for reorienting the network
-                            if selected_points and hasattr(selected_points, 'selection') and selected_points.selection.points:
-                                clicked_point = selected_points.selection.points[0]
-                                clicked_node = clicked_point.text
-                                
-                                if clicked_node and clicked_node != selected_target:
-                                    # Update session state to center on clicked node
-                                    st.session_state[f'target_network_center_{selected_target}'] = clicked_node
-                                    st.rerun()
                             
                             # Add clickable buttons below the graph for manual node selection
                             if center_node == selected_target:
