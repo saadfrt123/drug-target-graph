@@ -5969,69 +5969,37 @@ def show_drug_search(app):
                     if total_targets <= 8:
                         # Single ring layout for few targets
                         radius = 6
+                    else:
+                        # Multi-ring layout for many targets
+                        inner_radius = 5
+                        outer_radius = 9
+                        targets_per_ring = min(10, total_targets // 2)
 
                     target_index = 0
 
                     for target_group, group_type in all_target_groups:
-
                         for target in target_group:
-
-                            angle = 2 * math.pi * target_index / total_targets
-
-                            x = radius * math.cos(angle)
-
-                            y = radius * math.sin(angle)
-
-                            target_positions.append((x, y, target, group_type))
-
-                            target_index += 1
-
-                else:
-
-                    # Multi-ring layout for many targets - more dramatic
-
-                    inner_radius = 5
-
-                    outer_radius = 9
-
-                    targets_per_ring = min(10, total_targets // 2)
-
-                    
-
-                    target_index = 0
-
-                    for target_group, group_type in all_target_groups:
-
-                        for target in target_group:
-
-                            if target_index < targets_per_ring:
-
-                                # Inner ring
-
-                                angle = 2 * math.pi * target_index / targets_per_ring
-
-                                x = inner_radius * math.cos(angle)
-
-                                y = inner_radius * math.sin(angle)
-
+                            if total_targets <= 8:
+                                # Single ring layout
+                                angle = 2 * math.pi * target_index / total_targets
+                                x = radius * math.cos(angle)
+                                y = radius * math.sin(angle)
                             else:
-
-                                # Outer ring
-
-                                outer_index = target_index - targets_per_ring
-
-                                remaining_targets = total_targets - targets_per_ring
-
-                                angle = 2 * math.pi * outer_index / remaining_targets
-
-                                x = outer_radius * math.cos(angle)
-
-                                y = outer_radius * math.sin(angle)
-
+                                # Multi-ring layout
+                                if target_index < targets_per_ring:
+                                    # Inner ring
+                                    angle = 2 * math.pi * target_index / targets_per_ring
+                                    x = inner_radius * math.cos(angle)
+                                    y = inner_radius * math.sin(angle)
+                                else:
+                                    # Outer ring
+                                    outer_index = target_index - targets_per_ring
+                                    remaining_targets = total_targets - targets_per_ring
+                                    angle = 2 * math.pi * outer_index / remaining_targets
+                                    x = outer_radius * math.cos(angle)
+                                    y = outer_radius * math.sin(angle)
                             
-
                             target_positions.append((x, y, target, group_type))
-
                             target_index += 1
 # For now, focus on drug-centered view only
 
