@@ -1737,6 +1737,87 @@ class DrugTargetGraphApp:
             return None
 
     
+    def get_target_network(self, target_name: str, depth: int = 1) -> Dict[str, Any]:
+        """Get network around a specific target"""
+        
+        if not self.driver:
+            return None
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                # Get target's drugs and their targets
+                result = session.run("""
+                    MATCH (t:Target {name: $target_name})<-[:TARGETS]-(d:Drug)
+                    OPTIONAL MATCH (d)-[:TARGETS]->(other_t:Target)
+                    WHERE other_t.name <> $target_name
+                    RETURN t.name as target, d.name as drug, d.moa as moa, d.phase as phase,
+                           other_t.name as other_target
+                    LIMIT 100
+                """, target_name=target_name)
+                
+                data = result.data()
+                
+                # Create network data
+                nodes = []
+                edges = []
+                node_ids = {}
+                
+                # Add central target
+                node_ids[target_name] = 0
+                nodes.append({
+                    'id': 0,
+                    'label': target_name,
+                    'type': 'central_target'
+                })
+                
+                # Add drugs and other targets
+                for record in data:
+                    drug_name = record['drug']
+                    other_target = record['other_target']
+                    
+                    # Add drug
+                    if drug_name not in node_ids:
+                        node_ids[drug_name] = len(nodes)
+                        nodes.append({
+                            'id': len(nodes),
+                            'label': drug_name,
+                            'type': 'drug',
+                            'moa': record['moa'],
+                            'phase': record['phase']
+                        })
+                    
+                    # Add other target
+                    if other_target and other_target not in node_ids:
+                        node_ids[other_target] = len(nodes)
+                        nodes.append({
+                            'id': len(nodes),
+                            'label': other_target,
+                            'type': 'other_target'
+                        })
+                    
+                    # Add edges
+                    edges.append({
+                        'source': node_ids[drug_name],
+                        'target': node_ids[target_name],
+                        'type': 'targets'
+                    })
+                    
+                    if other_target:
+                        edges.append({
+                            'source': node_ids[drug_name],
+                            'target': node_ids[other_target],
+                            'type': 'targets'
+                        })
+                
+                return {
+                    'nodes': nodes,
+                    'edges': edges,
+                    'central_target': target_name
+                }
+                
+        except Exception as e:
+            st.error(f"Error getting target network: {e}")
+            return None
 
     def search_drugs(self, search_term: str, limit: int = 20) -> List[Dict]:
 
@@ -3550,11 +3631,26 @@ def show_network_visualization(app):
 
         if drug_name:
 
-            network_data = app.get_drug_network(drug_name)
+            # Check if a target was clicked to center the network
+            center_key = f'main_drug_network_center_{drug_name}'
+            center_node = st.session_state.get(center_key, drug_name)
+            
+            # Debug information
+            st.caption(f"🔍 Debug: Center key = '{center_key}', Center node = '{center_node}'")
+
+            if center_node == drug_name:
+                # Drug-centered view: show drug in center with its targets
+                network_data = app.get_drug_network(drug_name)
+            else:
+                # Target-centered view: show target in center with all drugs targeting it
+                network_data = app.get_target_network(center_node)
 
             if network_data:
 
-                st.success(f"Found network for {drug_name}")
+                if center_node == drug_name:
+                    st.success(f"Found network for {drug_name}")
+                else:
+                    st.success(f"Found network for target {center_node}")
 
                 
 
@@ -3580,29 +3676,34 @@ def show_network_visualization(app):
 
                 for node in nodes:
 
-                    if node['type'] == 'central_drug':
-
-                        node_x.append(0)
-
-                        node_y.append(0)
-
-                        node_color.append('red')
-
-                    elif node['type'] == 'target':
-
-                        node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'target'])))
-
-                        node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'target'])))
-
-                        node_color.append('blue')
-
+                    if center_node == drug_name:
+                        # Drug-centered view
+                        if node['type'] == 'central_drug':
+                            node_x.append(0)
+                            node_y.append(0)
+                            node_color.append('red')
+                        elif node['type'] == 'target':
+                            node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'target'])))
+                            node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'target'])))
+                            node_color.append('blue')
+                        else:
+                            node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_drug'])))
+                            node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_drug'])))
+                            node_color.append('green')
                     else:
-
-                        node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_drug'])))
-
-                        node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_drug'])))
-
-                        node_color.append('green')
+                        # Target-centered view
+                        if node['type'] == 'central_target':
+                            node_x.append(0)
+                            node_y.append(0)
+                            node_color.append('red')
+                        elif node['type'] == 'drug':
+                            node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'drug'])))
+                            node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'drug'])))
+                            node_color.append('green')
+                        else:
+                            node_x.append(np.cos(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_target'])))
+                            node_y.append(np.sin(len(node_x) * 2 * np.pi / len([n for n in nodes if n['type'] == 'other_target'])))
+                            node_color.append('blue')
 
                     
 
@@ -3678,29 +3779,66 @@ def show_network_visualization(app):
 
                 
 
+                if center_node == drug_name:
+                    title_text = f"🕸️ Drug-Centered Network: {drug_name}"
+                else:
+                    title_text = f"🕸️ Target-Centered Network: {center_node}"
+                
                 fig.update_layout(
-
-                    title=f"Network around {drug_name}",
-
+                    title=title_text,
                     showlegend=False,
-
                     hovermode='closest',
-
                     margin=dict(b=20,l=5,r=5,t=40),
-
                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-
                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-
                     height=600
-
                 )
 
                 
 
                 st.plotly_chart(fig, width='stretch')
-
                 
+                # Add interactive buttons for network reorientation
+                if center_node == drug_name:
+                    # Drug-centered view: show target buttons
+                    st.markdown("**🎯 Click a target below to center the network on it:**")
+                    target_nodes = [n for n in nodes if n['type'] == 'target']
+                    if target_nodes:
+                        target_cols = st.columns(min(4, len(target_nodes)))
+                        for i, target_node in enumerate(target_nodes):
+                            with target_cols[i % len(target_cols)]:
+                                target_name = target_node['label']
+                                if st.button(f"🎯 {target_name}", key=f"center_target_{drug_name}_{target_name}_{i}"):
+                                    st.session_state[f'main_drug_network_center_{drug_name}'] = target_name
+                                    st.success(f"🎯 Centering network on target: {target_name}")
+                                    st.rerun()
+                    else:
+                        st.info("No targets found for this drug")
+                else:
+                    # Target-centered view: show drug buttons
+                    st.markdown(f"**🎯 Currently centered on: {center_node}**")
+                    st.markdown("**💊 Click a drug below to center the network on it:**")
+                    drug_nodes = [n for n in nodes if n['type'] == 'drug']
+                    if drug_nodes:
+                        drug_cols = st.columns(min(4, len(drug_nodes)))
+                        for i, drug_node in enumerate(drug_nodes):
+                            with drug_cols[i % len(drug_cols)]:
+                                drug_name_btn = drug_node['label']
+                                button_text = f"💊 {drug_name_btn}" if drug_name_btn != drug_name else f"⭐ {drug_name_btn} (Original)"
+                                if st.button(button_text, key=f"center_drug_{drug_name}_{drug_name_btn}_{i}"):
+                                    st.session_state[f'main_drug_network_center_{drug_name}'] = drug_name_btn
+                                    st.success(f"💊 Centering network on drug: {drug_name_btn}")
+                                    st.rerun()
+                    else:
+                        st.info("No drugs found for this target")
+                
+                # Add reset button
+                reset_text = "🔄 Reset to Drug Center" if center_node != drug_name else "🔄 Reset Network"
+                if st.button(reset_text, key=f"reset_main_network_{drug_name}"):
+                    if f'main_drug_network_center_{drug_name}' in st.session_state:
+                        del st.session_state[f'main_drug_network_center_{drug_name}']
+                    st.success("🔄 Reset to drug center")
+                    st.rerun()
 
                 # Show network statistics
 
