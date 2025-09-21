@@ -6073,6 +6073,20 @@ def show_drug_search(app):
                     st.warning(f"⚠️ Only 1 target found: {targets[0]}")
                 else:
                     st.success(f"✅ Found {len(targets)} targets")
+                
+                # Direct database test to verify targets
+                if selected_drug.lower() == 'aspirin':
+                    st.caption("🔍 Direct DB Test for Aspirin:")
+                    try:
+                        with app.driver.session(database=app.database) as session:
+                            direct_targets = session.run("""
+                                MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)
+                                RETURN t.name as target
+                                ORDER BY t.name
+                            """, drug_name=selected_drug).data()
+                            st.caption(f"🔍 Direct DB query found {len(direct_targets)} targets: {[t['target'] for t in direct_targets[:5]]}")
+                    except Exception as e:
+                        st.caption(f"🔍 Direct DB test failed: {e}")
             else:
                 # Target-centered view: show target in center with all drugs targeting it
                 # Use cached network data for faster reorientation
@@ -6259,10 +6273,16 @@ def show_drug_search(app):
                     else:
                         st.caption("🔍 Debug: No targets were positioned!")
                     
+                    edge_count = 0  # Debug counter
+                    
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
                         mechanism = mech_info.get('mechanism', 'Unclassified')
+                        
+                        # Debug: Check mechanism info for first few targets
+                        if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
+                            st.caption(f"🔍 Debug: {target} mechanism info: {mech_info}")
                         rel_type = mech_info.get('relationship_type', 'Unclassified')
                         target_class = mech_info.get('target_class', 'Unknown')
                         target_subclass = mech_info.get('target_subclass', 'Unknown')
@@ -6329,6 +6349,7 @@ def show_drug_search(app):
                         hoverinfo='text'
                     ))
                     edge_traces[priority] = True
+                    edge_count += 1  # Debug counter
 
                     
 
@@ -6430,6 +6451,9 @@ def show_drug_search(app):
                             hoverinfo='text'
                         ))
                         edge_traces[priority] = True
+                    
+                    # Debug: Show how many edges were created
+                    st.caption(f"🔍 Debug: Created {edge_count} edges for drug-centered view")
 
                 # Enhanced VIVID nodes with dramatic glow effects
                 if center_node == selected_drug:
