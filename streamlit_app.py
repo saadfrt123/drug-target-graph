@@ -6020,7 +6020,41 @@ def show_drug_search(app):
                             
                             target_positions.append((x, y, target, group_type))
                             target_index += 1
-# For now, focus on drug-centered view only
+                else:
+                    # Target-centered view: position drugs around target
+                    if total_drugs <= 8:
+                        # Single ring layout for few drugs
+                        radius = 6
+                    else:
+                        # Multi-ring layout for many drugs
+                        inner_radius = 5
+                        outer_radius = 9
+                        drugs_per_ring = min(10, total_drugs // 2)
+                    
+                    drug_index = 0
+                    
+                    for drug_group, group_type in all_drug_groups:
+                        for drug in drug_group:
+                            if total_drugs <= 8:
+                                angle = 2 * math.pi * drug_index / total_drugs
+                                x = radius * math.cos(angle)
+                                y = radius * math.sin(angle)
+                            else:
+                                if drug_index < drugs_per_ring:
+                                    # Inner ring
+                                    angle = 2 * math.pi * drug_index / drugs_per_ring
+                                    x = inner_radius * math.cos(angle)
+                                    y = inner_radius * math.sin(angle)
+                                else:
+                                    # Outer ring
+                                    outer_index = drug_index - drugs_per_ring
+                                    remaining_drugs = total_drugs - drugs_per_ring
+                                    angle = 2 * math.pi * outer_index / remaining_drugs
+                                    x = outer_radius * math.cos(angle)
+                                    y = outer_radius * math.sin(angle)
+                            
+                            drug_positions.append((x, y, drug, group_type))
+                            drug_index += 1
 
                 # Create the VIVID, dramatic plot
 
@@ -6210,17 +6244,55 @@ def show_drug_search(app):
 
                         ))
 
+                else:
+                    # Target-centered view: create edges from target to drugs
+                    for x, y, drug, ring_type in drug_positions:
+                        # Get drug info
+                        drug_info = next((d for d in target_drugs if d['drug'] == drug), {})
+                        moa = drug_info.get('moa', 'Unknown')
+                        phase = drug_info.get('phase', 'Unknown')
+                        
+                        # Simple classification based on phase
+                        if phase == 'Approved':
+                            edge_color = '#27AE60'  # Professional green
+                            edge_width = 4
+                            priority = 'Approved Drug'
+                            node_color = '#2ECC71'  # Emerald green
+                            glow_color = 'rgba(46, 204, 113, 0.2)'
+                        elif phase in ['Phase III', 'Phase II']:
+                            edge_color = '#E67E22'  # Professional orange
+                            edge_width = 3
+                            priority = 'Clinical Phase'
+                            node_color = '#F39C12'  # Orange
+                            glow_color = 'rgba(243, 156, 18, 0.2)'
+                        else:
+                            edge_color = '#95A5A6'  # Professional gray
+                            edge_width = 2
+                            priority = 'Other Phase'
+                            node_color = '#BDC3C7'  # Light gray
+                            glow_color = 'rgba(189, 195, 199, 0.2)'
+                        
+                        # Create edge from target to drug
+                        fig.add_trace(go.Scatter(
+                            x=[target_x, x], y=[target_y, y],
+                            mode='lines',
+                            line=dict(color=edge_color, width=edge_width),
+                            name=priority if priority not in edge_traces else '',
+                            showlegend=priority not in edge_traces,
+                            legendgroup=priority,
+                            hovertemplate=f'<b>Drug:</b> {drug}<br><b>MOA:</b> {moa}<br><b>Phase:</b> {phase}<extra></extra>',
+                            hoverinfo='text'
+                        ))
+                        
+                        edge_traces[priority] = True
 
-
-                # Enhanced VIVID target nodes with dramatic glow effects
-
-                for x, y, target, ring_type in target_positions:
-
-                    mech_info = target_mechanisms.get(target, {})
-
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
+                # Enhanced VIVID nodes with dramatic glow effects
+                if center_node == selected_drug:
+                    # Drug-centered view: show target nodes
+                    for x, y, target, ring_type in target_positions:
+                        mech_info = target_mechanisms.get(target, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
 
                     confidence = mech_info.get('confidence', 0)
 
@@ -6323,8 +6395,58 @@ def show_drug_search(app):
                         hoverinfo='text'
 
                     ))
-
-
+                else:
+                    # Target-centered view: show drug nodes
+                    for x, y, drug, ring_type in drug_positions:
+                        # Get drug info
+                        drug_info = next((d for d in target_drugs if d['drug'] == drug), {})
+                        moa = drug_info.get('moa', 'Unknown')
+                        phase = drug_info.get('phase', 'Unknown')
+                        
+                        # Simple classification based on phase
+                        if phase == 'Approved':
+                            node_color = '#2ECC71'  # Emerald green
+                            border_color = '#27AE60'  # Professional green
+                            text_color = 'white'
+                        elif phase in ['Phase III', 'Phase II']:
+                            node_color = '#F39C12'  # Orange
+                            border_color = '#E67E22'  # Professional orange
+                            text_color = 'white'
+                        else:
+                            node_color = '#BDC3C7'  # Light gray
+                            border_color = '#95A5A6'  # Professional gray
+                            text_color = 'black'
+                        
+                        # Drug hover text
+                        drug_hover = f"""
+                        <b style="font-size:18px; color:{border_color}">{drug}</b><br>
+                        <b>MOA:</b> <span style="color:white">{moa}</span><br>
+                        <b>Phase:</b> <span style="color:gold">{phase}</span><br>
+                        <b>Target:</b> <span style="color:lightblue">{center_node}</span>
+                        """
+                        
+                        # Drug node with glow effect
+                        fig.add_trace(go.Scatter(
+                            x=[x], y=[y],
+                            mode='markers',
+                            marker=dict(size=60, color=f'rgba({int(node_color[1:3], 16)}, {int(node_color[3:5], 16)}, {int(node_color[5:7], 16)}, 0.3)', opacity=0.5),
+                            showlegend=False,
+                            hoverinfo='skip'
+                        ))
+                        
+                        # Main drug node
+                        fig.add_trace(go.Scatter(
+                            x=[x], y=[y],
+                            mode='markers+text',
+                            marker=dict(size=50, color=node_color, line=dict(color=border_color, width=3), opacity=0.9),
+                            text=[drug.upper()],
+                            textposition='middle center',
+                            textfont=dict(size=10, color=text_color, family='Arial'),
+                            name='💊 Drug',
+                            showlegend=True,
+                            hovertemplate=drug_hover + '<extra></extra>',
+                            hoverinfo='text'
+                        ))
 
                 # Enhanced CENTRAL node with MASSIVE dramatic effect
                 if center_node == selected_drug:
@@ -6339,48 +6461,62 @@ def show_drug_search(app):
                     # Drug node subtle glow effect - single layer
                     fig.add_trace(go.Scatter(
                         x=[drug_x], y=[drug_y],
-
-                    mode='markers',
-
-                    marker=dict(size=85, color='rgba(52, 152, 219, 0.3)', opacity=0.5),
-
-                    showlegend=False,
-
-                    hoverinfo='skip'
-
-                ))
+                        mode='markers',
+                        marker=dict(size=85, color='rgba(52, 152, 219, 0.3)', opacity=0.5),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
 
 
 
-                # Main drug node - prominent but not overwhelming
-
-                fig.add_trace(go.Scatter(
-
-                    x=[drug_x], y=[drug_y],
-
-                    mode='markers+text',
-
-                    marker=dict(size=70, color='#3498DB',  # Professional blue
-
-                               line=dict(color='#2980B9', width=4),  # Darker blue border
-
-                               opacity=0.9),
-
-                    text=[selected_drug.upper()],
-
-                    textposition='middle center',
-
-                    textfont=dict(size=14, color='white', family='Arial'),
-
-                    name='💊 Drug',
-
-                    showlegend=True,
-
-                    hovertemplate=drug_hover + '<extra></extra>',
-
-                    hoverinfo='text'
-
-                ))
+                    # Main drug node - prominent but not overwhelming
+                    fig.add_trace(go.Scatter(
+                        x=[drug_x], y=[drug_y],
+                        mode='markers+text',
+                        marker=dict(size=70, color='#3498DB',  # Professional blue
+                                   line=dict(color='#2980B9', width=4),  # Darker blue border
+                                   opacity=0.9),
+                        text=[selected_drug.upper()],
+                        textposition='middle center',
+                        textfont=dict(size=14, color='white', family='Arial'),
+                        name='💊 Drug',
+                        showlegend=True,
+                        hovertemplate=drug_hover + '<extra></extra>',
+                        hoverinfo='text'
+                    ))
+                else:
+                    # Target-centered view: show target in center
+                    target_hover = f"""
+                    <b style="font-size:22px; color:#FF1493">{center_node}</b><br>
+                    <b>Total Drugs:</b> <span style="color:gold">{len(target_drugs)}</span><br>
+                    <b>Target Type:</b> <span style="color:lightgreen">Biological Target</span><br>
+                    <b>Function:</b> <span style="color:lightblue">Protein/Receptor</span>
+                    """
+                    
+                    # Target node subtle glow effect - single layer
+                    fig.add_trace(go.Scatter(
+                        x=[target_x], y=[target_y],
+                        mode='markers',
+                        marker=dict(size=85, color='rgba(231, 76, 60, 0.3)', opacity=0.5),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                    
+                    # Main target node - prominent but not overwhelming
+                    fig.add_trace(go.Scatter(
+                        x=[target_x], y=[target_y],
+                        mode='markers+text',
+                        marker=dict(size=70, color='#E74C3C',  # Professional red
+                                   line=dict(color='#C0392B', width=4),  # Darker red border
+                                   opacity=0.9),
+                        text=[center_node.upper()],
+                        textposition='middle center',
+                        textfont=dict(size=14, color='white', family='Arial'),
+                        name='🎯 Target',
+                        showlegend=True,
+                        hovertemplate=target_hover + '<extra></extra>',
+                        hoverinfo='text'
+                    ))
 
                 # Clean, professional layout
 
