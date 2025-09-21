@@ -6304,76 +6304,66 @@ def show_drug_search(app):
                             # Debug: Show we got past mechanism info parsing
                             if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
                                 st.caption(f"🔍 Debug: {target} - Got past mechanism parsing, rel_type: {rel_type}")
+
+                            # Clean, professional color scheme
+                            if rel_type == 'Primary/On-Target':
+                                edge_color = '#27AE60'  # Professional green
+                                edge_width = 4
+                                priority = 'Primary Effect'
+                                node_color = '#2ECC71'  # Emerald green
+                                glow_color = 'rgba(46, 204, 113, 0.2)'
+                            elif rel_type == 'Secondary/Off-Target':
+                                edge_color = '#E67E22'  # Professional orange
+                                edge_width = 3
+                                priority = 'Secondary Effect'
+                                node_color = '#F39C12'  # Orange
+                                glow_color = 'rgba(243, 156, 18, 0.2)'
+                            else:  # Unknown or Unclassified
+                                edge_color = '#7F8C8D'  # Professional gray
+                                edge_width = 2
+                                priority = 'Under Analysis'
+                                node_color = '#95A5A6'  # Light gray
+                                glow_color = 'rgba(149, 165, 166, 0.2)'
+
+                            # Enhanced hover information with rich formatting
+                            hover_text = f"""
+                            <b style="font-size:16px; color:{edge_color}">{target}</b><br>
+                            <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
+                            <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                            <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                            <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
+                            """
+                            
+                            # Add subtle glow effect - much more minimal
+                            fig.add_trace(go.Scatter(
+                                x=[drug_x, x], y=[drug_y, y],
+                                mode='lines',
+                                line=dict(color=glow_color, width=edge_width + 2),
+                                showlegend=False,
+                                hoverinfo='skip'
+                            ))
+
+                            # Main connection line with VIVID colors
+                            fig.add_trace(go.Scatter(
+                                x=[drug_x, x], y=[drug_y, y],
+                                mode='lines',
+                                line=dict(color=edge_color, width=edge_width),
+                                name=priority if priority not in edge_traces else '',
+                                showlegend=priority not in edge_traces,
+                                legendgroup=priority,
+                                hovertemplate=hover_text + '<extra></extra>',
+                                hoverinfo='text'
+                            ))
+                            edge_traces[priority] = True
+                            edge_count += 1  # Debug counter
+                            
+                            # Debug: Show edge creation for first few targets
+                            if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
+                                st.caption(f"🔍 Debug: Created edge for {target} ({rel_type}) at ({x:.2f}, {y:.2f}) - Total edges: {edge_count}")
+
                         except Exception as e:
-                            st.caption(f"🔍 Debug: {target} - Error in mechanism parsing: {e}")
+                            st.caption(f"🔍 Debug: {target} - Error in edge creation: {e}")
                             continue
-
-                    
-
-                        # Clean, professional color scheme
-                        if rel_type == 'Primary/On-Target':
-                            edge_color = '#27AE60'  # Professional green
-                            edge_width = 4
-                            priority = 'Primary Effect'
-                            node_color = '#2ECC71'  # Emerald green
-                            glow_color = 'rgba(46, 204, 113, 0.2)'
-                        elif rel_type == 'Secondary/Off-Target':
-                            edge_color = '#E67E22'  # Professional orange
-                            edge_width = 3
-                            priority = 'Secondary Effect'
-                            node_color = '#F39C12'  # Orange
-                            glow_color = 'rgba(243, 156, 18, 0.2)'
-                        else:  # Unknown or Unclassified
-                            edge_color = '#7F8C8D'  # Professional gray
-                            edge_width = 2
-                            priority = 'Under Analysis'
-                            node_color = '#95A5A6'  # Light gray
-                            glow_color = 'rgba(149, 165, 166, 0.2)'
-
-                    
-
-                    # Enhanced hover information with rich formatting
-                    hover_text = f"""
-                    <b style="font-size:16px; color:{edge_color}">{target}</b><br>
-                    <b>Effect Type:</b> <span style="color:{edge_color}">{priority}</span><br>
-                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                    <b>Target Class:</b> <span style="color:lightblue">{target_class}</span>
-                    """
-                    
-                    # Add subtle glow effect - much more minimal
-                    fig.add_trace(go.Scatter(
-                        x=[drug_x, x], y=[drug_y, y],
-                        mode='lines',
-                        line=dict(color=glow_color, width=edge_width + 2),
-
-                        showlegend=False,
-
-                        hoverinfo='skip'
-
-                    ))
-
-                    
-
-                    # Main connection line with VIVID colors
-                    fig.add_trace(go.Scatter(
-                        x=[drug_x, x], y=[drug_y, y],
-                        mode='lines',
-                        line=dict(color=edge_color, width=edge_width),
-                        name=priority if priority not in edge_traces else '',
-                        showlegend=priority not in edge_traces,
-                        legendgroup=priority,
-                        hovertemplate=hover_text + '<extra></extra>',
-                        hoverinfo='text'
-                    ))
-                    edge_traces[priority] = True
-                    edge_count += 1  # Debug counter
-                    
-                    # Debug: Show edge creation for first few targets
-                    if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
-                        st.caption(f"🔍 Debug: Created edge for {target} ({rel_type}) at ({x:.2f}, {y:.2f}) - Total edges: {edge_count}")
-
-                    
 
                     # Add clean mechanism labels - only for primary effects to reduce clutter
 
