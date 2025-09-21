@@ -6784,6 +6784,9 @@ def show_target_search(app):
                             center_key = f'target_network_center_{selected_target}'
                             center_node = st.session_state.get(center_key, selected_target)
                             
+                            # Debug information
+                            st.caption(f"🔍 Debug: Center key = '{center_key}', Center node = '{center_node}'")
+                            
                             # Create network graph
                             G = nx.Graph()
                             
@@ -6941,6 +6944,7 @@ def show_target_search(app):
                                             drug_name = drug['drug_name']
                                             if st.button(f"💊 {drug_name}", key=f"center_drug_{selected_target}_{drug_name}_{i}"):
                                                 st.session_state[f'target_network_center_{selected_target}'] = drug_name
+                                                st.success(f"🎯 Centering network on: {drug_name}")
                                                 st.rerun()
                                 else:
                                     st.info("No drugs found for this target")
@@ -6955,6 +6959,7 @@ def show_target_search(app):
                                             button_text = f"💊 {drug_name}" if drug_name != center_node else f"⭐ {drug_name} (Current)"
                                             if st.button(button_text, key=f"center_drug_{selected_target}_{drug_name}_{i}"):
                                                 st.session_state[f'target_network_center_{selected_target}'] = drug_name
+                                                st.success(f"🎯 Centering network on: {drug_name}")
                                                 st.rerun()
                                 else:
                                     st.info("No drugs found for this target")
@@ -6964,6 +6969,7 @@ def show_target_search(app):
                             if st.button(reset_text, key=f"reset_target_{selected_target}"):
                                 if f'target_network_center_{selected_target}' in st.session_state:
                                     del st.session_state[f'target_network_center_{selected_target}']
+                                st.success("🔄 Reset to target center")
                                 st.rerun()
                             
                         except Exception as e:
