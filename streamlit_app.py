@@ -6065,28 +6065,6 @@ def show_drug_search(app):
                 # Drug-centered view: show drug in center with its targets
                 targets = drug_details['targets']  # Show ALL targets
                 network_data = None
-                # Debug: Show how many targets were found
-                st.caption(f"🔍 Debug: Retrieved {len(targets)} targets for {selected_drug}: {targets[:5]}{'...' if len(targets) > 5 else ''}")
-                if len(targets) == 0:
-                    st.error("❌ No targets found for this drug! Check database connection.")
-                elif len(targets) == 1:
-                    st.warning(f"⚠️ Only 1 target found: {targets[0]}")
-                else:
-                    st.success(f"✅ Found {len(targets)} targets")
-                
-                # Direct database test to verify targets
-                if selected_drug.lower() == 'aspirin':
-                    st.caption("🔍 Direct DB Test for Aspirin:")
-                    try:
-                        with app.driver.session(database=app.database) as session:
-                            direct_targets = session.run("""
-                                MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)
-                                RETURN t.name as target
-                                ORDER BY t.name
-                            """, drug_name=selected_drug).data()
-                            st.caption(f"🔍 Direct DB query found {len(direct_targets)} targets: {[t['target'] for t in direct_targets[:5]]}")
-                    except Exception as e:
-                        st.caption(f"🔍 Direct DB test failed: {e}")
             else:
                 # Target-centered view: show target in center with all drugs targeting it
                 # Use cached network data for faster reorientation
@@ -6266,32 +6244,11 @@ def show_drug_search(app):
                 # Create edges based on current view
                 if center_node == selected_drug:
                     # Drug-centered view: create edges from drug to targets
-                    # Debug: Check if all targets are in target_positions
-                    st.caption(f"🔍 Debug: Found {len(targets)} targets, positioned {len(target_positions)} targets")
-                    if len(target_positions) > 0:
-                        st.caption(f"🔍 Debug: First few positioned targets: {[pos[2] for pos in target_positions[:3]]}")
-                    else:
-                        st.caption("🔍 Debug: No targets were positioned!")
-                    
-                    edge_count = 0  # Debug counter
-                    
-                    # Debug: Check target_positions list
-                    st.caption(f"🔍 Debug: target_positions list length: {len(target_positions)}")
-                    if len(target_positions) > 0:
-                        st.caption(f"🔍 Debug: First target_positions entry: {target_positions[0]}")
                     
                     for x, y, target, ring_type in target_positions:
-                        # Debug: Show we're in the edge creation loop
-                        if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
-                            st.caption(f"🔍 Debug: Starting edge creation for {target}")
-                        
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
                         mechanism = mech_info.get('mechanism', 'Unclassified')
-                        
-                        # Debug: Check mechanism info for first few targets
-                        if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
-                            st.caption(f"🔍 Debug: {target} mechanism info: {mech_info}")
                         
                         try:
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
@@ -6301,9 +6258,6 @@ def show_drug_search(app):
                             reasoning = mech_info.get('reasoning', 'No details available')
                             classified = mech_info.get('classified', False)
                             
-                            # Debug: Show we got past mechanism info parsing
-                            if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
-                                st.caption(f"🔍 Debug: {target} - Got past mechanism parsing, rel_type: {rel_type}")
 
                             # Clean, professional color scheme
                             if rel_type == 'Primary/On-Target':
@@ -6355,14 +6309,8 @@ def show_drug_search(app):
                                 hoverinfo='text'
                             ))
                             edge_traces[priority] = True
-                            edge_count += 1  # Debug counter
                             
-                            # Debug: Show edge creation for first few targets
-                            if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
-                                st.caption(f"🔍 Debug: Created edge for {target} ({rel_type}) at ({x:.2f}, {y:.2f}) - Total edges: {edge_count}")
-
                         except Exception as e:
-                            st.caption(f"🔍 Debug: {target} - Error in edge creation: {e}")
                             continue
 
                     # Add clean mechanism labels - only for primary effects to reduce clutter
@@ -6401,6 +6349,7 @@ def show_drug_search(app):
                         ))
                 else:
                     # Target-centered view: create edges from target to drugs
+                    target_x, target_y = 0, 0  # Target is at center
                     for x, y, drug, ring_type in drug_positions:
                         # Get drug info
                         drug_info = next((d for d in network_data['drugs'] if d['drug'] == drug), {})
@@ -6464,8 +6413,6 @@ def show_drug_search(app):
                         ))
                         edge_traces[priority] = True
                     
-                    # Debug: Show how many edges were created
-                    st.caption(f"🔍 Debug: Created {edge_count} edges for drug-centered view")
 
                 # Enhanced VIVID nodes with dramatic glow effects
                 if center_node == selected_drug:
@@ -6536,7 +6483,7 @@ def show_drug_search(app):
 
                         textposition='middle center',
 
-                        textfont=dict(size=11, color=text_color, family='Arial'),
+                        textfont=dict(size=14, color='black', family='Arial Black'),
 
                         showlegend=False,
 
