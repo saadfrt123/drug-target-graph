@@ -6424,69 +6424,39 @@ def show_drug_search(app):
                         mechanism = mech_info.get('mechanism', 'Unclassified')
                         confidence = mech_info.get('confidence', 0)
 
-                    
-
-                    # Clean color scheme matching edges
-
-                    if rel_type == 'Primary/On-Target':
-
-                        node_color = '#2ECC71'  # Emerald green
-
-                        border_color = '#27AE60'  # Professional green
-
-                        text_color = 'white'
-
-                        glow_color = 'rgba(46, 204, 113, 0.3)'
-
-                    elif rel_type == 'Secondary/Off-Target':
-
-                        node_color = '#F39C12'  # Orange
-
-                        border_color = '#E67E22'  # Professional orange
-
-                        text_color = 'white'
-
-                        glow_color = 'rgba(243, 156, 18, 0.3)'
-
-                    else:
-
-                        node_color = '#95A5A6'  # Light gray
-
-                        border_color = '#7F8C8D'  # Professional gray
-
-                        text_color = 'white'
-
-                        glow_color = 'rgba(149, 165, 166, 0.3)'
+                        # Clean color scheme matching edges
+                        if rel_type == 'Primary/On-Target':
+                            node_color = '#2ECC71'  # Emerald green
+                            border_color = '#27AE60'  # Professional green
+                            text_color = 'white'
+                            glow_color = 'rgba(46, 204, 113, 0.3)'
+                        elif rel_type == 'Secondary/Off-Target':
+                            node_color = '#F39C12'  # Orange
+                            border_color = '#E67E22'  # Professional orange
+                            text_color = 'white'
+                            glow_color = 'rgba(243, 156, 18, 0.3)'
+                        else:
+                            node_color = '#95A5A6'  # Light gray
+                            border_color = '#7F8C8D'  # Professional gray
+                            text_color = 'white'
+                            glow_color = 'rgba(149, 165, 166, 0.3)'
 
                     
 
-                    # Enhanced hover info with rich styling
-
-                    target_hover = f"""
-
-                    <b style="font-size:18px; color:{border_color}">{target}</b><br>
-
-                    <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
-
-                    <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
-
-                    <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-
-                    <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
-
-                    """
-
-                    
-
-                    # Add subtle glow effect for nodes - single layer
-
-                    fig.add_trace(go.Scatter(
-
-                        x=[x], y=[y],
-
-                        mode='markers',
-
-                        marker=dict(size=65, color=glow_color, opacity=0.4),
+                        # Enhanced hover info with rich styling
+                        target_hover = f"""
+                        <b style="font-size:18px; color:{border_color}">{target}</b><br>
+                        <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
+                        <b>Mechanism:</b> <span style="color:white">{mechanism}</span><br>
+                        <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
+                        <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
+                        """
+                        
+                        # Add subtle glow effect for nodes - single layer
+                        fig.add_trace(go.Scatter(
+                            x=[x], y=[y],
+                            mode='markers',
+                            marker=dict(size=65, color=glow_color, opacity=0.4),
 
                         showlegend=False,
 
@@ -6625,31 +6595,8 @@ def show_drug_search(app):
 
 
 
-                # Make the network interactive with click events
-                selected_points = st.plotly_chart(
-                    fig, 
-                    use_container_width=True,
-                    key=f"interactive_network_{selected_drug}",
-                    on_select="rerun"
-                )
-                
-                # Handle node clicks for reorientation
-                if selected_points and hasattr(selected_points, 'selection') and selected_points.selection.points:
-                    clicked_point = selected_points.selection.points[0]
-                    if 'text' in clicked_point:
-                        clicked_text = clicked_point.text
-                        if center_node == selected_drug:
-                            # In drug view, clicking a target should center on that target
-                            if clicked_text in targets:
-                                st.session_state[center_key] = clicked_text
-                                st.success(f"🎯 Centering network on target: {clicked_text}")
-                                st.rerun()
-                        else:
-                            # In target view, clicking a drug should center on that drug
-                            if network_data and clicked_text in [d['drug'] for d in network_data['drugs']]:
-                                st.session_state[center_key] = clicked_text
-                                st.success(f"💊 Centering network on drug: {clicked_text}")
-                                st.rerun()
+                # Display the interactive network
+                st.plotly_chart(fig, use_container_width=True)
                 
                 # Add interactive buttons for manual reorientation
                 st.markdown("### 🎮 Interactive Controls")
