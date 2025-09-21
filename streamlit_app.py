@@ -6281,6 +6281,10 @@ def show_drug_search(app):
                         st.caption(f"🔍 Debug: First target_positions entry: {target_positions[0]}")
                     
                     for x, y, target, ring_type in target_positions:
+                        # Debug: Show we're in the edge creation loop
+                        if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
+                            st.caption(f"🔍 Debug: Starting edge creation for {target}")
+                        
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
                         mechanism = mech_info.get('mechanism', 'Unclassified')
