@@ -6067,6 +6067,12 @@ def show_drug_search(app):
                 network_data = None
                 # Debug: Show how many targets were found
                 st.caption(f"🔍 Debug: Retrieved {len(targets)} targets for {selected_drug}: {targets[:5]}{'...' if len(targets) > 5 else ''}")
+                if len(targets) == 0:
+                    st.error("❌ No targets found for this drug! Check database connection.")
+                elif len(targets) == 1:
+                    st.warning(f"⚠️ Only 1 target found: {targets[0]}")
+                else:
+                    st.success(f"✅ Found {len(targets)} targets")
             else:
                 # Target-centered view: show target in center with all drugs targeting it
                 # Use cached network data for faster reorientation
@@ -6089,10 +6095,9 @@ def show_drug_search(app):
 
                 # Enhanced layout algorithm based on classification types
                 if center_node == selected_drug:
-                    # Drug-centered view: drug in center, targets around it
+                    # Drug-centered view: position targets around drug
                     drug_x, drug_y = 0, 0
                     target_positions = []
-                    num_targets = len(targets)
                     
                     # Group targets by classification type for intelligent positioning
                     primary_targets = []
@@ -6112,39 +6117,6 @@ def show_drug_search(app):
                             unknown_targets.append(target)
                         else:
                             unclassified_targets.append(target)
-                else:
-                    # Target-centered view: target in center, drugs around it
-                    target_x, target_y = 0, 0
-                    drug_positions = []
-                    num_drugs = len(network_data['drugs']) if network_data else 0
-                    
-                    # Group drugs by classification type for intelligent positioning
-                    primary_drugs = []
-                    secondary_drugs = []
-                    unknown_drugs = []
-                    unclassified_drugs = []
-                    
-                    if network_data:
-                        for drug in network_data['drugs']:
-                            drug_name = drug['drug']
-                            mech_info = network_data['target_mechanisms'].get(drug_name, {})
-                            rel_type = mech_info.get('relationship_type', 'Unclassified')
-                            
-                            if rel_type == 'Primary/On-Target':
-                                primary_drugs.append(drug_name)
-                            elif rel_type == 'Secondary/Off-Target':
-                                secondary_drugs.append(drug_name)
-                            elif rel_type == 'Unknown':
-                                unknown_drugs.append(drug_name)
-                            else:
-                                unclassified_drugs.append(drug_name)
-
-                
-
-                # Enhanced vivid circular layout with dramatic visual impact
-                if center_node == selected_drug:
-                    # Drug-centered view: position targets around drug
-                    target_positions = []
                     
                     # Group all targets by type for intelligent positioning
                     all_target_groups = [
@@ -6282,6 +6254,10 @@ def show_drug_search(app):
                     # Drug-centered view: create edges from drug to targets
                     # Debug: Check if all targets are in target_positions
                     st.caption(f"🔍 Debug: Found {len(targets)} targets, positioned {len(target_positions)} targets")
+                    if len(target_positions) > 0:
+                        st.caption(f"🔍 Debug: First few positioned targets: {[pos[2] for pos in target_positions[:3]]}")
+                    else:
+                        st.caption("🔍 Debug: No targets were positioned!")
                     
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
