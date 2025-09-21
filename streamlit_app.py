@@ -6292,12 +6292,21 @@ def show_drug_search(app):
                         # Debug: Check mechanism info for first few targets
                         if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
                             st.caption(f"🔍 Debug: {target} mechanism info: {mech_info}")
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
-                        target_class = mech_info.get('target_class', 'Unknown')
-                        target_subclass = mech_info.get('target_subclass', 'Unknown')
-                        confidence = mech_info.get('confidence', 0)
-                        reasoning = mech_info.get('reasoning', 'No details available')
-                        classified = mech_info.get('classified', False)
+                        
+                        try:
+                            rel_type = mech_info.get('relationship_type', 'Unclassified')
+                            target_class = mech_info.get('target_class', 'Unknown')
+                            target_subclass = mech_info.get('target_subclass', 'Unknown')
+                            confidence = mech_info.get('confidence', 0)
+                            reasoning = mech_info.get('reasoning', 'No details available')
+                            classified = mech_info.get('classified', False)
+                            
+                            # Debug: Show we got past mechanism info parsing
+                            if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
+                                st.caption(f"🔍 Debug: {target} - Got past mechanism parsing, rel_type: {rel_type}")
+                        except Exception as e:
+                            st.caption(f"🔍 Debug: {target} - Error in mechanism parsing: {e}")
+                            continue
 
                     
 
