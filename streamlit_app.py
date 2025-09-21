@@ -6275,6 +6275,11 @@ def show_drug_search(app):
                     
                     edge_count = 0  # Debug counter
                     
+                    # Debug: Check target_positions list
+                    st.caption(f"🔍 Debug: target_positions list length: {len(target_positions)}")
+                    if len(target_positions) > 0:
+                        st.caption(f"🔍 Debug: First target_positions entry: {target_positions[0]}")
+                    
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
