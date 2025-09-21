@@ -6054,16 +6054,28 @@ def show_drug_search(app):
             center_key = f'interactive_network_center_{selected_drug}'
             center_node = st.session_state.get(center_key, selected_drug)
             
-            # Start background classification for all targets
-            app.background_classify_targets(selected_drug, drug_details['targets'])
+            # Start background classification for all targets (only if not already cached)
+            uncached_targets = [t for t in drug_details['targets'] if not app.is_cached(selected_drug, t)]
+            if uncached_targets:
+                app.background_classify_targets(selected_drug, uncached_targets)
             
             if center_node == selected_drug:
                 # Drug-centered view: show drug in center with its targets
                 targets = drug_details['targets']  # Show ALL targets
                 network_data = None
+                # Debug: Show how many targets were found
+                st.caption(f"🔍 Debug: Retrieved {len(targets)} targets for {selected_drug}: {targets[:5]}{'...' if len(targets) > 5 else ''}")
             else:
                 # Target-centered view: show target in center with all drugs targeting it
-                network_data = app.get_target_network_data(center_node)
+                # Use cached network data for faster reorientation
+                cache_key = f"target_network_{center_node}"
+                if cache_key in st.session_state:
+                    network_data = st.session_state[cache_key]
+                else:
+                    network_data = app.get_target_network_data(center_node)
+                    if network_data:
+                        st.session_state[cache_key] = network_data
+                
                 if network_data:
                     targets = [center_node]  # The centered target
                 else:
@@ -6180,7 +6192,30 @@ def show_drug_search(app):
                             target_index += 1
                 else:
                     # Target-centered view: position drugs around target
+                    drug_x, drug_y = 0, 0  # Target is at center
                     drug_positions = []
+                    
+                    # Initialize drug classification lists
+                    primary_drugs = []
+                    secondary_drugs = []
+                    unknown_drugs = []
+                    unclassified_drugs = []
+                    
+                    # Classify drugs based on their relationship to the centered target
+                    if network_data and 'drugs' in network_data:
+                        for drug_info in network_data['drugs']:
+                            drug_name = drug_info.get('drug', '')
+                            mech_info = target_mechanisms.get(drug_name, {})
+                            rel_type = mech_info.get('relationship_type', 'Unclassified')
+                            
+                            if rel_type == 'Primary/On-Target':
+                                primary_drugs.append(drug_name)
+                            elif rel_type == 'Secondary/Off-Target':
+                                secondary_drugs.append(drug_name)
+                            elif rel_type == 'Unknown':
+                                unknown_drugs.append(drug_name)
+                            else:
+                                unclassified_drugs.append(drug_name)
                     
                     # Group all drugs by type for intelligent positioning
                     all_drug_groups = [
@@ -6243,6 +6278,9 @@ def show_drug_search(app):
                 # Create edges based on current view
                 if center_node == selected_drug:
                     # Drug-centered view: create edges from drug to targets
+                    # Debug: Check if all targets are in target_positions
+                    st.caption(f"🔍 Debug: Found {len(targets)} targets, positioned {len(target_positions)} targets")
+                    
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
