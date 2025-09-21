@@ -6350,6 +6350,10 @@ def show_drug_search(app):
                     ))
                     edge_traces[priority] = True
                     edge_count += 1  # Debug counter
+                    
+                    # Debug: Show edge creation for first few targets
+                    if target in ['PTGS1', 'PTGS2', 'AKR1C1']:
+                        st.caption(f"🔍 Debug: Created edge for {target} ({rel_type}) at ({x:.2f}, {y:.2f}) - Total edges: {edge_count}")
 
                     
 
