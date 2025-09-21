@@ -6079,7 +6079,7 @@ def show_drug_search(app):
                             mode='text',
                             text=[display_mechanism],
 
-                            textfont=dict(size=11, color='black', family='Arial', weight='bold'),
+                            textfont=dict(size=11, color='black', family='Arial'),
                             textposition='middle center',
                             showlegend=False,
 
