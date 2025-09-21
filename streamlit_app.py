@@ -10,6 +10,8 @@ from neo4j import GraphDatabase
 
 import logging
 
+from typing import List, Dict, Any
+
 
 
 # Force light theme
@@ -1735,6 +1737,23 @@ class DrugTargetGraphApp:
             st.error(f"Error getting drug network: {e}")
 
             return None
+
+    def find_drugs_by_target(self, target_name: str) -> List[Dict]:
+        """Find all drugs that target a specific target"""
+        if not self.driver:
+            return []
+            
+        try:
+            with self.driver.session(database=self.database) as session:
+                result = session.run("""
+                    MATCH (d:Drug)-[:TARGETS]->(t:Target {name: $target_name})
+                    RETURN d.name as drug, d.moa as moa, d.phase as phase
+                    ORDER BY d.name
+                """, target_name=target_name)
+                return result.data()
+        except Exception as e:
+            st.error(f"Error finding drugs by target: {e}")
+            return []
 
     
     def get_target_network(self, target_name: str, depth: int = 1) -> Dict[str, Any]:
@@ -6141,17 +6160,17 @@ def show_drug_search(app):
 
                         
 
-                        # Simplified mechanism text display
+                        # Enhanced mechanism text display with better visibility
 
                         display_mechanism = mechanism
 
-                        if len(mechanism) > 12:
+                        if len(mechanism) > 15:
 
-                            display_mechanism = mechanism[:10] + "..."
+                            display_mechanism = mechanism[:12] + "..."
 
                         
 
-                        # Simple background for text readability
+                        # Enhanced background for text readability
 
                         fig.add_trace(go.Scatter(
 
@@ -6159,9 +6178,9 @@ def show_drug_search(app):
 
                             mode='markers',
 
-                            marker=dict(size=40, color='rgba(255,255,255,0.9)', opacity=0.8, 
+                            marker=dict(size=50, color='rgba(255,255,255,0.95)', opacity=0.9, 
 
-                                       line=dict(color=edge_color, width=1)),
+                                       line=dict(color=edge_color, width=2)),
 
                             showlegend=False,
 
@@ -6179,7 +6198,7 @@ def show_drug_search(app):
 
                             text=[display_mechanism],
 
-                            textfont=dict(size=9, color='black', family='Arial'),
+                            textfont=dict(size=11, color='black', family='Arial', weight='bold'),
 
                             textposition='middle center',
 
