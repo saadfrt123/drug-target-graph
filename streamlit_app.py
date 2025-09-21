@@ -5862,93 +5862,113 @@ def show_drug_search(app):
 
             
 
-            targets = drug_details['targets']  # Show ALL targets
-
+            # Check if a target was clicked to center the network
+            center_key = f'main_drug_search_center_{selected_drug}'
+            center_node = st.session_state.get(center_key, selected_drug)
             
+            if center_node == selected_drug:
+                # Drug-centered view: show drug in center with its targets
+                targets = drug_details['targets']  # Show ALL targets
+            else:
+                # Target-centered view: show target in center with all drugs targeting it
+                target_drugs = app.find_drugs_by_target(center_node)
+                targets = [center_node]  # The centered target
+                # We'll show drugs around the target
 
             if targets:
 
                 # Enhanced layout algorithm based on classification types
-
-                drug_x, drug_y = 0, 0
-
-                target_positions = []
-
-                num_targets = len(targets)
+                # Dynamic positioning based on center node
+                if center_node == selected_drug:
+                    # Drug-centered view: drug in center, targets around it
+                    drug_x, drug_y = 0, 0
+                    target_positions = []
+                    num_targets = len(targets)
+                else:
+                    # Target-centered view: target in center, drugs around it
+                    target_x, target_y = 0, 0
+                    drug_positions = []
+                    target_drugs = app.find_drugs_by_target(center_node)
+                    num_drugs = len(target_drugs)
 
                 
 
                 # Group targets by classification type for intelligent positioning
-
-                primary_targets = []
-
-                secondary_targets = []
-
-                unknown_targets = []
-
-                unclassified_targets = []
-
-                
-
-                for target in targets:
-
-                    mech_info = target_mechanisms.get(target, {})
-
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-
+                if center_node == selected_drug:
+                    # Drug-centered view: group targets by classification
+                    primary_targets = []
+                    secondary_targets = []
+                    unknown_targets = []
+                    unclassified_targets = []
                     
-
-                    if rel_type == 'Primary/On-Target':
-
-                        primary_targets.append(target)
-
-                    elif rel_type == 'Secondary/Off-Target':
-
-                        secondary_targets.append(target)
-
-                    elif rel_type == 'Unknown':
-
-                        unknown_targets.append(target)
-
-                    else:
-
-                        unclassified_targets.append(target)
+                    for target in targets:
+                        mech_info = target_mechanisms.get(target, {})
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        
+                        if rel_type == 'Primary/On-Target':
+                            primary_targets.append(target)
+                        elif rel_type == 'Secondary/Off-Target':
+                            secondary_targets.append(target)
+                        elif rel_type == 'Unknown':
+                            unknown_targets.append(target)
+                        else:
+                            unclassified_targets.append(target)
+                else:
+                    # Target-centered view: group drugs by classification
+                    primary_drugs = []
+                    secondary_drugs = []
+                    unknown_drugs = []
+                    unclassified_drugs = []
+                    
+                    for drug in target_drugs:
+                        drug_name = drug['drug']
+                        # For target-centered view, we'll use simple classification
+                        if drug.get('phase') == 'Approved':
+                            primary_drugs.append(drug_name)
+                        elif drug.get('phase') in ['Phase III', 'Phase II']:
+                            secondary_drugs.append(drug_name)
+                        else:
+                            unclassified_drugs.append(drug_name)
 
                 
 
                 # Enhanced vivid circular layout with dramatic visual impact
-
-                target_positions = []
+                if center_node == selected_drug:
+                    # Drug-centered view: position targets around drug
+                    target_positions = []
+                    
+                    # Group all targets by type for intelligent positioning
+                    all_target_groups = [
+                        (primary_targets, 'primary'),
+                        (secondary_targets, 'secondary'), 
+                        (unknown_targets, 'unknown'),
+                        (unclassified_targets, 'unclassified')
+                    ]
+                    
+                    # Calculate dramatic circular layout for maximum visual impact
+                    total_targets = len(targets)
+                else:
+                    # Target-centered view: position drugs around target
+                    drug_positions = []
+                    
+                    # Group all drugs by type for intelligent positioning
+                    all_drug_groups = [
+                        (primary_drugs, 'primary'),
+                        (secondary_drugs, 'secondary'), 
+                        (unknown_drugs, 'unknown'),
+                        (unclassified_drugs, 'unclassified')
+                    ]
+                    
+                    # Calculate dramatic circular layout for maximum visual impact
+                    total_drugs = len(target_drugs)
 
                 
 
-                # Group all targets by type for intelligent positioning
-
-                all_target_groups = [
-
-                    (primary_targets, 'primary'),
-
-                    (secondary_targets, 'secondary'), 
-
-                    (unknown_targets, 'unknown'),
-
-                    (unclassified_targets, 'unclassified')
-
-                ]
-
-                
-
-                # Calculate dramatic circular layout for maximum visual impact
-
-                total_targets = len(targets)
-
-                
-
-                if total_targets <= 8:
-
-                    # Single ring layout for few targets
-
-                    radius = 6
+                if center_node == selected_drug:
+                    # Drug-centered view: position targets around drug
+                    if total_targets <= 8:
+                        # Single ring layout for few targets
+                        radius = 6
 
                     target_index = 0
 
@@ -6013,8 +6033,7 @@ def show_drug_search(app):
                             target_positions.append((x, y, target, group_type))
 
                             target_index += 1
-
-
+# For now, focus on drug-centered view only
 
                 # Create the VIVID, dramatic plot
 
@@ -6027,26 +6046,18 @@ def show_drug_search(app):
                 edge_traces = {}  # Group edges by type for legend
 
                 
-
-                for x, y, target, ring_type in target_positions:
-
-                    # Get comprehensive mechanism info for this target
-
-                    mech_info = target_mechanisms.get(target, {})
-
-                    mechanism = mech_info.get('mechanism', 'Unclassified')
-
-                    rel_type = mech_info.get('relationship_type', 'Unclassified')
-
-                    target_class = mech_info.get('target_class', 'Unknown')
-
-                    target_subclass = mech_info.get('target_subclass', 'Unknown')
-
-                    confidence = mech_info.get('confidence', 0)
-
-                    reasoning = mech_info.get('reasoning', 'No details available')
-
-                    classified = mech_info.get('classified', False)
+                if center_node == selected_drug:
+                    # Drug-centered view: create edges from drug to targets
+                    for x, y, target, ring_type in target_positions:
+                        # Get comprehensive mechanism info for this target
+                        mech_info = target_mechanisms.get(target, {})
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        target_class = mech_info.get('target_class', 'Unknown')
+                        target_subclass = mech_info.get('target_subclass', 'Unknown')
+                        confidence = mech_info.get('confidence', 0)
+                        reasoning = mech_info.get('reasoning', 'No details available')
+                        classified = mech_info.get('classified', False)
 
                     
 
@@ -6328,27 +6339,19 @@ def show_drug_search(app):
 
 
 
-                # Enhanced CENTRAL drug node with MASSIVE dramatic effect
-
-                drug_hover = f"""
-
-                <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
-
-                <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
-
-                <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
-
-                <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>
-
-                """
-
-
-
-                # Drug node subtle glow effect - single layer
-
-                fig.add_trace(go.Scatter(
-
-                    x=[drug_x], y=[drug_y],
+                # Enhanced CENTRAL node with MASSIVE dramatic effect
+                if center_node == selected_drug:
+                    # Drug-centered view: show drug in center
+                    drug_hover = f"""
+                    <b style="font-size:22px; color:#FF1493">{selected_drug}</b><br>
+                    <b>Total Targets:</b> <span style="color:gold">{len(drug_details['targets'])}</span><br>
+                    <b>MOA:</b> <span style="color:lightgreen">{drug_details['drug_info'].get('moa', 'Unknown')}</span><br>
+                    <b>Indication:</b> <span style="color:lightblue">{drug_details['drug_info'].get('indication', 'Unknown')}</span>
+                    """
+                    
+                    # Drug node subtle glow effect - single layer
+                    fig.add_trace(go.Scatter(
+                        x=[drug_x], y=[drug_y],
 
                     mode='markers',
 
@@ -6392,15 +6395,11 @@ def show_drug_search(app):
 
                 ))
 
-
-
                 # Clean, professional layout
 
                 fig.update_layout(
-
                     title=dict(
-
-                        text=f"Drug-Target Network: {selected_drug}",
+                        text=f"🕸️ {'Drug-Centered' if center_node == selected_drug else 'Target-Centered'} Network: {center_node}",
 
                         font=dict(size=20, color='#2C3E50', family='Arial'),
 
@@ -6465,8 +6464,55 @@ def show_drug_search(app):
 
 
                 st.plotly_chart(fig, use_container_width=True)
-
-
+                
+                # Add interactive functionality for network reorientation
+                # Check if a target was clicked to center the network
+                center_key = f'main_drug_search_center_{selected_drug}'
+                center_node = st.session_state.get(center_key, selected_drug)
+                
+                # Debug information
+                st.caption(f"🔍 Debug: Center key = '{center_key}', Center node = '{center_node}'")
+                
+                # Add interactive buttons for network reorientation
+                if center_node == selected_drug:
+                    # Drug-centered view: show target buttons
+                    st.markdown("**🎯 Click a target below to center the network on it:**")
+                    if targets:
+                        target_cols = st.columns(min(4, len(targets)))
+                        for i, target in enumerate(targets):
+                            with target_cols[i % len(target_cols)]:
+                                if st.button(f"🎯 {target}", key=f"center_target_{selected_drug}_{target}_{i}"):
+                                    st.session_state[f'main_drug_search_center_{selected_drug}'] = target
+                                    st.success(f"🎯 Centering network on target: {target}")
+                                    st.rerun()
+                    else:
+                        st.info("No targets found for this drug")
+                else:
+                    # Target-centered view: show drug buttons
+                    st.markdown(f"**🎯 Currently centered on: {center_node}**")
+                    st.markdown("**💊 Click a drug below to center the network on it:**")
+                    # Get drugs targeting this target
+                    target_drugs = app.find_drugs_by_target(center_node)
+                    if target_drugs:
+                        drug_cols = st.columns(min(4, len(target_drugs)))
+                        for i, drug in enumerate(target_drugs):
+                            with drug_cols[i % len(drug_cols)]:
+                                drug_name = drug['drug']
+                                button_text = f"💊 {drug_name}" if drug_name != selected_drug else f"⭐ {drug_name} (Original)"
+                                if st.button(button_text, key=f"center_drug_{selected_drug}_{drug_name}_{i}"):
+                                    st.session_state[f'main_drug_search_center_{selected_drug}'] = drug_name
+                                    st.success(f"💊 Centering network on drug: {drug_name}")
+                                    st.rerun()
+                    else:
+                        st.info("No drugs found for this target")
+                
+                # Add reset button
+                reset_text = "🔄 Reset to Drug Center" if center_node != selected_drug else "🔄 Reset Network"
+                if st.button(reset_text, key=f"reset_main_drug_search_{selected_drug}"):
+                    if f'main_drug_search_center_{selected_drug}' in st.session_state:
+                        del st.session_state[f'main_drug_search_center_{selected_drug}']
+                    st.success("🔄 Reset to drug center")
+                    st.rerun()
 
                 # Clean summary
 
