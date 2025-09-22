@@ -6356,11 +6356,26 @@ def show_drug_search(app):
                         moa = drug_info.get('moa', 'Unknown')
                         phase = drug_info.get('phase', 'Unknown')
                         
-                        # Get mechanism info
-                        mech_info = network_data['target_mechanisms'].get(drug, {})
-                        mechanism = mech_info.get('mechanism', 'Unclassified')
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
-                        confidence = mech_info.get('confidence', 0)
+                        # Get mechanism info for this drug-target pair
+                        mech_info = app.get_cached_classification(drug, center_node)
+                        if not mech_info:
+                            # If not cached, use a simple classification based on drug info
+                            if phase in ['Approved', 'Phase 4']:
+                                rel_type = 'Primary/On-Target'
+                                mechanism = 'Approved Drug'
+                                confidence = 0.9
+                            elif phase in ['Phase 1', 'Phase 2', 'Phase 3']:
+                                rel_type = 'Secondary/Off-Target'
+                                mechanism = 'Clinical Trial Drug'
+                                confidence = 0.7
+                            else:
+                                rel_type = 'Unclassified'
+                                mechanism = 'Unknown'
+                                confidence = 0.3
+                        else:
+                            mechanism = mech_info.get('mechanism', 'Unclassified')
+                            rel_type = mech_info.get('relationship_type', 'Unclassified')
+                            confidence = mech_info.get('confidence', 0)
                         
                         # Simple classification based on phase and mechanism
                         if rel_type == 'Primary/On-Target':
@@ -6500,9 +6515,18 @@ def show_drug_search(app):
                         moa = drug_info.get('moa', 'Unknown')
                         phase = drug_info.get('phase', 'Unknown')
                         
-                        # Get mechanism info
-                        mech_info = network_data['target_mechanisms'].get(drug, {})
-                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        # Get mechanism info for this drug-target pair
+                        mech_info = app.get_cached_classification(drug, center_node)
+                        if not mech_info:
+                            # If not cached, use a simple classification based on drug info
+                            if phase in ['Approved', 'Phase 4']:
+                                rel_type = 'Primary/On-Target'
+                            elif phase in ['Phase 1', 'Phase 2', 'Phase 3']:
+                                rel_type = 'Secondary/Off-Target'
+                            else:
+                                rel_type = 'Unclassified'
+                        else:
+                            rel_type = mech_info.get('relationship_type', 'Unclassified')
                         
                         # Color scheme for drugs
                         if rel_type == 'Primary/On-Target':
