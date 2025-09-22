@@ -6826,6 +6826,7 @@ def show_drug_search(app):
                 
                 if center_node == selected_drug:
                     # Drug-centered view: show target buttons
+                    st.info(f"🔍 VIEW: Drug-centered view - center_node='{center_node}' == selected_drug='{selected_drug}'")
                     st.markdown("**🎯 Click a target below to center the network on it:**")
                     if targets:
                         target_cols = st.columns(min(4, len(targets)))
@@ -6839,6 +6840,7 @@ def show_drug_search(app):
                         st.info("No targets found for this drug")
                 else:
                     # Target-centered view: show drug buttons
+                    st.info(f"🔍 VIEW: Target-centered view - center_node='{center_node}' != selected_drug='{selected_drug}'")
                     st.markdown(f"**🎯 Currently centered on: {center_node}**")
                     st.markdown("**💊 Click a drug below to center the network on it:**")
                     if network_data and network_data['drugs']:
@@ -6851,6 +6853,8 @@ def show_drug_search(app):
                                     st.session_state[center_key] = drug_name
                                     # CRITICAL: Also update the selectbox state
                                     st.session_state['selected_drug'] = drug_name
+                                    # DEBUG: Show what we just set
+                                    st.error(f"🚨 BUTTON CLICKED: Set selected_drug='{drug_name}' and center_key='{drug_name}'")
                                     st.success(f"💊 Centering network on drug: {drug_name}")
                                     st.rerun()
                     else:
