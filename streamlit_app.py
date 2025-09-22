@@ -6110,6 +6110,9 @@ def show_drug_search(app):
                 # Drug-centered view: show drug in center with its targets
                 targets = drug_details['targets']  # Show ALL targets
                 network_data = None
+                # DEBUG: Show what data we're using for the graph
+                st.error(f"🔍 GRAPH DEBUG: selected_drug='{selected_drug}' | center_node='{center_node}' | targets={targets[:3] if targets else []}... ({len(targets) if targets else 0} total)")
+                st.error(f"🔍 DRUG_DETAILS: {drug_details['drug_info'].get('name', 'NO NAME')} - {drug_details['drug_info'].get('moa', 'NO MOA')}")
             else:
                 # Check if center_node is a drug (from target-centered view drug selection)
                 # First get network_data if we don't have it
@@ -6153,6 +6156,8 @@ def show_drug_search(app):
                         network_data = None
                         # Show success message
                         st.success(f"🔄 Switched to drug-centered view for **{new_selected_drug}**")
+                        # DEBUG: Show what we just updated
+                        st.warning(f"🔄 SWITCH DEBUG: new selected_drug='{selected_drug}' | new targets={targets[:3] if targets else []}... ({len(targets) if targets else 0} total)")
                         # Don't rerun - let the UI naturally update
                     else:
                         # Fallback to original drug
