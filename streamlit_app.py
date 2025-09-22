@@ -6221,7 +6221,8 @@ def show_drug_search(app):
                             target_index += 1
                 else:
                     # Target-centered view: position drugs around target
-                    drug_x, drug_y = 0, 0  # Target is at center
+                    target_x, target_y = 0, 0  # Target is at center
+                    drug_x, drug_y = 0, 0  # Target is at center (alias for compatibility)
                     drug_positions = []
                     
                     # Initialize drug classification lists
@@ -6493,10 +6494,11 @@ def show_drug_search(app):
                     
 
                 # Enhanced VIVID nodes with dramatic glow effects
+                # Initialize annotations list for both views
+                annotations = []
+                
                 if center_node == selected_drug:
                     # Drug-centered view: show target nodes
-                    # Collect all annotations first
-                    annotations = []
                     
                     for i, (x, y, target, ring_type) in enumerate(target_positions):
                         try:
