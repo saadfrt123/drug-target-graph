@@ -6513,7 +6513,7 @@ def show_drug_search(app):
                                 x=x, y=y,
                                 text=target.upper(),
                                 showarrow=False,
-                                font=dict(size=16, color='white', family='Arial Black'),
+                                font=dict(size=14, color='white', family='Arial'),
                                 bgcolor='rgba(0,0,0,0.7)',
                                 bordercolor='white',
                                 borderwidth=1,
@@ -6523,10 +6523,10 @@ def show_drug_search(app):
                         except Exception as e:
                             # If there's an error, still create the annotation
                             annotation = dict(
-                                x=x, y=[y],
+                                x=x, y=y,
                                 text=target.upper(),
                                 showarrow=False,
-                                font=dict(size=16, color='white', family='Arial Black'),
+                                font=dict(size=14, color='white', family='Arial'),
                                 bgcolor='rgba(0,0,0,0.7)',
                                 bordercolor='white',
                                 borderwidth=1,
