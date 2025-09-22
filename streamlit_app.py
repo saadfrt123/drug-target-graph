@@ -3406,9 +3406,66 @@ class DrugTargetGraphApp:
 
 
 
+def check_authentication():
+    """Check if user is authenticated"""
+    return st.session_state.get('authenticated', False)
+
+def show_login():
+    """Show login form"""
+    st.markdown('<h1 class="main-header">🔐 Drug-Target Graph Database - Login</h1>', unsafe_allow_html=True)
+    
+    with st.container():
+        st.markdown("""
+        <div class="connection-form">
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 🔑 Please enter your credentials to access the database")
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            username = st.text_input("Username:", key="login_username")
+            password = st.text_input("Password:", type="password", key="login_password")
+            
+            if st.button("🔓 Login", type="primary", use_container_width=True):
+                # Simple credential check (you can modify these)
+                if username == "admin" and password == "drugdb2024":
+                    st.session_state['authenticated'] = True
+                    st.session_state['current_user'] = username
+                    st.success("✅ Login successful!")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid username or password")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Instructions
+        st.info("""
+        **Demo Credentials:**
+        - Username: `admin`
+        - Password: `drugdb2024`
+        
+        **Note:** Change these credentials in the source code for production use.
+        """)
+
 def main():
 
     """Main Streamlit app"""
+    
+    # Check authentication first
+    if not check_authentication():
+        show_login()
+        return
+    
+    # Show logout button in sidebar
+    with st.sidebar:
+        st.markdown("---")
+        if st.button("🔒 Logout"):
+            st.session_state['authenticated'] = False
+            st.session_state.pop('current_user', None)
+            st.rerun()
+        
+        if 'current_user' in st.session_state:
+            st.success(f"👤 Logged in as: {st.session_state['current_user']}")
 
     st.markdown('<h1 class="main-header">💊 Drug-Target Graph Database</h1>', unsafe_allow_html=True)
 
@@ -6110,9 +6167,6 @@ def show_drug_search(app):
                 # Drug-centered view: show drug in center with its targets
                 targets = drug_details['targets']  # Show ALL targets
                 network_data = None
-                # DEBUG: Show what data we're using for the graph
-                st.error(f"🔍 GRAPH DEBUG: selected_drug='{selected_drug}' | center_node='{center_node}' | targets={targets[:3] if targets else []}... ({len(targets) if targets else 0} total)")
-                st.error(f"🔍 DRUG_DETAILS: {drug_details['drug_info'].get('name', 'NO NAME')} - {drug_details['drug_info'].get('moa', 'NO MOA')}")
             else:
                 # Check if center_node is a drug (from target-centered view drug selection)
                 # First get network_data if we don't have it
@@ -6125,9 +6179,6 @@ def show_drug_search(app):
                         if network_data:
                             st.session_state[cache_key] = network_data
                 
-                # DEBUG: Check the switching condition
-                available_drugs = [d['drug'] for d in network_data.get('drugs', [])] if network_data else []
-                st.warning(f"🔍 SWITCH CONDITION: network_data exists={network_data is not None} | center_node='{center_node}' | available_drugs={available_drugs[:5]}...")
                 
                 if network_data and center_node in [d['drug'] for d in network_data.get('drugs', [])]:
                     # Switch to drug-centered view for the selected drug
@@ -6160,8 +6211,6 @@ def show_drug_search(app):
                         network_data = None
                         # Show success message
                         st.success(f"🔄 Switched to drug-centered view for **{new_selected_drug}**")
-                        # DEBUG: Show what we just updated
-                        st.warning(f"🔄 SWITCH DEBUG: new selected_drug='{selected_drug}' | new targets={targets[:3] if targets else []}... ({len(targets) if targets else 0} total)")
                         # Don't rerun - let the UI naturally update
                     else:
                         # Fallback to original drug
@@ -6826,7 +6875,6 @@ def show_drug_search(app):
                 
                 if center_node == selected_drug:
                     # Drug-centered view: show target buttons
-                    st.info(f"🔍 VIEW: Drug-centered view - center_node='{center_node}' == selected_drug='{selected_drug}'")
                     st.markdown("**🎯 Click a target below to center the network on it:**")
                     if targets:
                         target_cols = st.columns(min(4, len(targets)))
@@ -6840,25 +6888,23 @@ def show_drug_search(app):
                         st.info("No targets found for this drug")
                 else:
                     # Target-centered view: show drug buttons
-                    st.info(f"🔍 VIEW: Target-centered view - center_node='{center_node}' != selected_drug='{selected_drug}'")
                     st.markdown(f"**🎯 Currently centered on: {center_node}**")
                     st.markdown("**💊 Click a drug below to center the network on it:**")
                     if network_data and network_data['drugs']:
-                        st.caption(f"DEBUG: Found {len(network_data['drugs'])} drugs: {[d['drug'] for d in network_data['drugs']]}")
                         drug_cols = st.columns(min(4, len(network_data['drugs'])))
                         for i, drug in enumerate(network_data['drugs']):
                             with drug_cols[i % len(drug_cols)]:
                                 drug_name = drug['drug']
                                 button_text = f"💊 {drug_name}" if drug_name != selected_drug else f"⭐ {drug_name} (Original)"
                                 button_key = f"target_view_drug_{center_node}_{drug_name}_{i}"
-                                st.caption(f"DEBUG: Button '{button_text}' with key '{button_key}'")
                                 if st.button(button_text, key=button_key):
-                                    st.session_state[center_key] = drug_name
-                                    # CRITICAL: Also update the selectbox state
+                                    # Immediately update all necessary session state
                                     st.session_state['selected_drug'] = drug_name
-                                    # DEBUG: Show what we just set
-                                    st.error(f"🚨 BUTTON CLICKED: Set selected_drug='{drug_name}' and center_key='{drug_name}'")
-                                    st.success(f"💊 Centering network on drug: {drug_name}")
+                                    st.session_state[center_key] = drug_name
+                                    # Force the selectbox to update by clearing any conflicting state
+                                    if 'drug_selectbox' in st.session_state:
+                                        del st.session_state['drug_selectbox']
+                                    st.success(f"✅ Switched to {drug_name}!")
                                     st.rerun()
                     else:
                         st.info("No drugs found for this target")
