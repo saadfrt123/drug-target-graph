@@ -6526,6 +6526,7 @@ def show_drug_search(app):
                     ))
                     
                     # Collect annotation for this target
+                    st.caption(f"DEBUG: About to create annotation for {target}")
                     annotation = dict(
                         x=x, y=y,
                         text=target.upper(),
