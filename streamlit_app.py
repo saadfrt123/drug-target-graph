@@ -6125,6 +6125,10 @@ def show_drug_search(app):
                         if network_data:
                             st.session_state[cache_key] = network_data
                 
+                # DEBUG: Check the switching condition
+                available_drugs = [d['drug'] for d in network_data.get('drugs', [])] if network_data else []
+                st.warning(f"🔍 SWITCH CONDITION: network_data exists={network_data is not None} | center_node='{center_node}' | available_drugs={available_drugs[:5]}...")
+                
                 if network_data and center_node in [d['drug'] for d in network_data.get('drugs', [])]:
                     # Switch to drug-centered view for the selected drug
                     new_selected_drug = center_node
