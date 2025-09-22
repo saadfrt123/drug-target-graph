@@ -4731,8 +4731,13 @@ def show_drug_search(app):
             
 
             # Allow user to select a drug for detailed view
-
-            selected_drug = st.selectbox("Select a drug for detailed view:", [r['drug'] for r in results])
+            # Use session state to maintain selection across interactions
+            drug_options = [r['drug'] for r in results]
+            default_index = 0
+            if 'selected_drug' in st.session_state and st.session_state['selected_drug'] in drug_options:
+                default_index = drug_options.index(st.session_state['selected_drug'])
+            
+            selected_drug = st.selectbox("Select a drug for detailed view:", drug_options, index=default_index, key="drug_selectbox")
 
             
 
@@ -6097,7 +6102,9 @@ def show_drug_search(app):
                         targets = drug_details['targets']
                         center_node = new_selected_drug
                         network_data = None
-                        # Force rerun to update the entire page
+                        # Show success message
+                        st.success(f"🔄 Switched to drug-centered view for **{new_selected_drug}**")
+                        # Force rerun to update the selectbox and entire page
                         st.rerun()
                     else:
                         # Fallback to original drug
