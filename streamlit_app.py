@@ -6107,6 +6107,14 @@ def show_drug_search(app):
                     
                     if network_data:
                         targets = [center_node]  # The centered target
+                        
+                        # Start background classification for all drugs in target-centered view
+                        if 'drugs' in network_data:
+                            for drug_info in network_data['drugs']:
+                                drug_name = drug_info['drug']
+                                # Classify this drug's relationship with the target
+                                if not app.is_cached(drug_name, center_node):
+                                    app.background_classify_targets(drug_name, [center_node])
                     else:
                         targets = drug_details['targets']  # Fallback to drug view
                         center_node = selected_drug
@@ -6388,7 +6396,7 @@ def show_drug_search(app):
                         # Get mechanism info for this drug-target pair
                         mech_info = app.get_cached_classification(drug, center_node)
                         if not mech_info:
-                            # If not cached, use a simple classification based on drug info
+                            # If not cached, use a more aggressive classification based on drug info
                             if phase in ['Approved', 'Phase 4']:
                                 rel_type = 'Primary/On-Target'
                                 mechanism = 'Approved Drug'
@@ -6397,10 +6405,18 @@ def show_drug_search(app):
                                 rel_type = 'Secondary/Off-Target'
                                 mechanism = 'Clinical Trial Drug'
                                 confidence = 0.7
+                            elif moa and 'inhibitor' in moa.lower():
+                                rel_type = 'Secondary/Off-Target'
+                                mechanism = 'Inhibitor'
+                                confidence = 0.6
+                            elif moa and 'agonist' in moa.lower():
+                                rel_type = 'Primary/On-Target'
+                                mechanism = 'Agonist'
+                                confidence = 0.6
                             else:
-                                rel_type = 'Unclassified'
-                                mechanism = 'Unknown'
-                                confidence = 0.3
+                                rel_type = 'Secondary/Off-Target'  # Default to secondary instead of unclassified
+                                mechanism = 'Drug Effect'
+                                confidence = 0.5
                         else:
                             mechanism = mech_info.get('mechanism', 'Unclassified')
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
