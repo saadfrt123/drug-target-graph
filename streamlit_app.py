@@ -6453,8 +6453,10 @@ def show_drug_search(app):
                     # Drug-centered view: show target nodes
                     # Collect all annotations first
                     annotations = []
+                    st.caption(f"DEBUG: Processing {len(target_positions)} target positions")
                     
-                    for x, y, target, ring_type in target_positions:
+                    for i, (x, y, target, ring_type) in enumerate(target_positions):
+                        st.caption(f"DEBUG: Processing target {i+1}/{len(target_positions)}: {target}")
                         mech_info = target_mechanisms.get(target, {})
                         rel_type = mech_info.get('relationship_type', 'Unclassified')
                         mechanism = mech_info.get('mechanism', 'Unclassified')
