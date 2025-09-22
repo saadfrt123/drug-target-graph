@@ -4723,6 +4723,9 @@ def show_drug_search(app):
 
             df = pd.DataFrame(results)
 
+            # Store search results in session state for persistence across reruns
+            st.session_state['search_results'] = results
+            
             # Streamlit 1.28 requires width as int; use full container width instead
             st.dataframe(df, use_container_width=True)
             
@@ -4732,7 +4735,12 @@ def show_drug_search(app):
 
             # Allow user to select a drug for detailed view
             # Use session state to maintain selection across interactions
-            drug_options = [r['drug'] for r in results]
+            # Use session state results if available (for persistence across reruns)
+            if 'search_results' in st.session_state:
+                drug_options = [r['drug'] for r in st.session_state['search_results']]
+            else:
+                drug_options = [r['drug'] for r in results]
+            
             default_index = 0
             if 'selected_drug' in st.session_state and st.session_state['selected_drug'] in drug_options:
                 default_index = drug_options.index(st.session_state['selected_drug'])
@@ -6096,6 +6104,19 @@ def show_drug_search(app):
                         st.session_state['selected_drug'] = new_selected_drug
                         # Update the center key to point to the new drug
                         st.session_state[center_key] = new_selected_drug
+                        
+                        # Add the new drug to search results if not already present
+                        if 'search_results' in st.session_state:
+                            existing_drugs = [r['drug'] for r in st.session_state['search_results']]
+                            if new_selected_drug not in existing_drugs:
+                                # Add the new drug to search results
+                                new_drug_result = {
+                                    'drug': new_selected_drug,
+                                    'moa': new_drug_details.get('moa', 'Unknown'),
+                                    'phase': new_drug_details.get('phase', 'Unknown')
+                                }
+                                st.session_state['search_results'].append(new_drug_result)
+                        
                         # Update local variables
                         selected_drug = new_selected_drug
                         drug_details = new_drug_details
