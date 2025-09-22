@@ -4712,6 +4712,7 @@ def show_drug_search(app):
     # Use stored search term if current is empty but we have stored results
     if not search_term and 'last_search_term' in st.session_state and 'search_results' in st.session_state:
         search_term = st.session_state['last_search_term']
+    
 
     if search_term:
 
@@ -4773,9 +4774,11 @@ def show_drug_search(app):
 
             # Update session state when selectbox changes
             st.session_state['selected_drug'] = selected_drug
+            
 
             if selected_drug:
 
+                # Always get fresh drug details for the currently selected drug
                 drug_details = app.get_drug_details(selected_drug)
 
                 if drug_details:
