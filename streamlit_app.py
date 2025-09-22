@@ -6500,6 +6500,9 @@ def show_drug_search(app):
                     
 
                     # Main target node with clean styling
+                    # Debug: Check if target has text
+                    if target:
+                        st.caption(f"Debug: Adding target node '{target}' at position ({x}, {y})")
 
                     fig.add_trace(go.Scatter(
 
@@ -6513,11 +6516,11 @@ def show_drug_search(app):
 
                                    opacity=0.9),
 
-                        text=[target],
+                        text=[target.upper()],
 
                         textposition='middle center',
 
-                        textfont=dict(size=14, color='white', family='Arial Black'),
+                        textfont=dict(size=18, color='black', family='Arial Black'),
 
                         showlegend=False,
 
