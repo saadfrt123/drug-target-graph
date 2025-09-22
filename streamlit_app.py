@@ -6108,13 +6108,22 @@ def show_drug_search(app):
                     if network_data:
                         targets = [center_node]  # The centered target
                         
-                        # Start background classification for all drugs in target-centered view
+                        # Start immediate classification for all drugs in target-centered view
                         if 'drugs' in network_data:
                             for drug_info in network_data['drugs']:
                                 drug_name = drug_info['drug']
-                                # Classify this drug's relationship with the target
+                                # Force immediate classification if not cached
                                 if not app.is_cached(drug_name, center_node):
-                                    app.background_classify_targets(drug_name, [center_node])
+                                    try:
+                                        mech_info = app.get_drug_target_classification(drug_name, center_node)
+                                        if mech_info:
+                                            # Cache the result immediately
+                                            cache_key = f"{drug_name}_{center_node}"
+                                            app._classification_cache[cache_key] = mech_info
+                                            persistent_key = get_cache_key(drug_name, center_node)
+                                            save_to_cache(persistent_key, mech_info)
+                                    except Exception as e:
+                                        st.error(f"Immediate classification error for {drug_name}-{center_node}: {e}")
                     else:
                         targets = drug_details['targets']  # Fallback to drug view
                         center_node = selected_drug
@@ -6396,31 +6405,23 @@ def show_drug_search(app):
                         # Get mechanism info for this drug-target pair
                         mech_info = app.get_cached_classification(drug, center_node)
                         if not mech_info:
-                            # If not cached, use a more aggressive classification based on drug info
-                            if phase in ['Approved', 'Phase 4']:
-                                rel_type = 'Primary/On-Target'
-                                mechanism = 'Approved Drug'
-                                confidence = 0.9
-                            elif phase in ['Phase 1', 'Phase 2', 'Phase 3']:
-                                rel_type = 'Secondary/Off-Target'
-                                mechanism = 'Clinical Trial Drug'
-                                confidence = 0.7
-                            elif moa and 'inhibitor' in moa.lower():
-                                rel_type = 'Secondary/Off-Target'
-                                mechanism = 'Inhibitor'
-                                confidence = 0.6
-                            elif moa and 'agonist' in moa.lower():
-                                rel_type = 'Primary/On-Target'
-                                mechanism = 'Agonist'
-                                confidence = 0.6
-                            else:
-                                rel_type = 'Secondary/Off-Target'  # Default to secondary instead of unclassified
-                                mechanism = 'Drug Effect'
-                                confidence = 0.5
-                        else:
-                            mechanism = mech_info.get('mechanism', 'Unclassified')
-                            rel_type = mech_info.get('relationship_type', 'Unclassified')
-                            confidence = mech_info.get('confidence', 0)
+                            # If not cached, force immediate classification
+                            try:
+                                mech_info = app.get_drug_target_classification(drug, center_node)
+                                if mech_info:
+                                    # Cache the result
+                                    cache_key = f"{drug}_{center_node}"
+                                    app._classification_cache[cache_key] = mech_info
+                                    persistent_key = get_cache_key(drug, center_node)
+                                    save_to_cache(persistent_key, mech_info)
+                            except Exception as e:
+                                st.error(f"Classification error for {drug}-{center_node}: {e}")
+                                mech_info = {}
+                        
+                        # Extract classification results
+                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        rel_type = mech_info.get('relationship_type', 'Unclassified')
+                        confidence = mech_info.get('confidence', 0)
                         
                         # Simple classification based on phase and mechanism
                         if rel_type == 'Primary/On-Target':
