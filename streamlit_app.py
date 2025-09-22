@@ -4712,9 +4712,6 @@ def show_drug_search(app):
     # Use stored search term if current is empty but we have stored results
     if not search_term and 'last_search_term' in st.session_state and 'search_results' in st.session_state:
         search_term = st.session_state['last_search_term']
-    
-    # DEBUG: Show state
-    st.caption(f"🔍 DEBUG: search_term='{search_term}', session selected_drug='{st.session_state.get('selected_drug', 'None')}'")
 
     if search_term:
 
@@ -4750,9 +4747,27 @@ def show_drug_search(app):
             else:
                 drug_options = [r['drug'] for r in results]
             
-            default_index = 0
-            if 'selected_drug' in st.session_state and st.session_state['selected_drug'] in drug_options:
-                default_index = drug_options.index(st.session_state['selected_drug'])
+            # Get current selection from session state, or default to first option
+            current_selection = st.session_state.get('selected_drug', drug_options[0] if drug_options else '')
+            
+            # If current selection is not in options, add it
+            if current_selection and current_selection not in drug_options:
+                # Get drug details to add to options
+                drug_details_for_addition = app.get_drug_details(current_selection)
+                if drug_details_for_addition:
+                    new_option = {
+                        'drug': current_selection,
+                        'moa': drug_details_for_addition.get('moa', 'Unknown'),
+                        'phase': drug_details_for_addition.get('phase', 'Unknown')
+                    }
+                    st.session_state['search_results'].append(new_option)
+                    drug_options.append(current_selection)
+            
+            # Find the index of current selection
+            try:
+                default_index = drug_options.index(current_selection) if current_selection in drug_options else 0
+            except:
+                default_index = 0
             
             selected_drug = st.selectbox("Select a drug for detailed view:", drug_options, index=default_index, key="drug_selectbox")
 
@@ -6135,10 +6150,7 @@ def show_drug_search(app):
                         network_data = None
                         # Show success message
                         st.success(f"🔄 Switched to drug-centered view for **{new_selected_drug}**")
-                        # DEBUG: Show what we just set
-                        st.caption(f"🔍 DEBUG: Just set selected_drug to '{new_selected_drug}', about to rerun")
-                        # Force rerun to update the selectbox and entire page
-                        st.rerun()
+                        # Don't rerun - let the UI naturally update
                     else:
                         # Fallback to original drug
                         selected_drug = st.session_state.get('original_selected_drug', selected_drug)
