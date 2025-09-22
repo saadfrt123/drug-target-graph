@@ -24,6 +24,8 @@ import pickle
 
 import threading
 
+import csv
+
 import time
 
 from typing import List, Dict, Any
@@ -32,7 +34,9 @@ from typing import List, Dict, Any
 
 # Cache management for fast network interactions
 CACHE_DIR = "network_cache"
+FEEDBACK_DIR = "feedback_data"
 os.makedirs(CACHE_DIR, exist_ok=True)
+os.makedirs(FEEDBACK_DIR, exist_ok=True)
 
 def get_cache_key(drug_name: str, target_name: str = None) -> str:
     """Generate a unique cache key for drug-target classification"""
@@ -64,6 +68,52 @@ def is_cached(key: str) -> bool:
     """Check if data is cached"""
     cache_file = os.path.join(CACHE_DIR, f"{key}.pkl")
     return os.path.exists(cache_file)
+
+def save_feedback_to_file(feedback_data: dict) -> None:
+    """Save feedback data to CSV file for analysis"""
+    try:
+        feedback_file = os.path.join(FEEDBACK_DIR, "classification_feedback.csv")
+        
+        # Check if file exists to write headers
+        file_exists = os.path.exists(feedback_file)
+        
+        with open(feedback_file, 'a', newline='', encoding='utf-8') as f:
+            fieldnames = ['timestamp', 'user', 'drug', 'target', 'feedback', 
+                         'relationship_type', 'mechanism', 'confidence', 'reasoning']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            
+            # Write header if new file
+            if not file_exists:
+                writer.writeheader()
+            
+            # Write feedback data
+            row = {
+                'timestamp': feedback_data['timestamp'],
+                'user': feedback_data['user'],
+                'drug': feedback_data['drug'],
+                'target': feedback_data['target'],
+                'feedback': feedback_data['feedback'],
+                'relationship_type': feedback_data['classification'].get('relationship_type', ''),
+                'mechanism': feedback_data['classification'].get('mechanism', ''),
+                'confidence': feedback_data['classification'].get('confidence', ''),
+                'reasoning': feedback_data['classification'].get('reasoning', '')[:200] + '...' if len(feedback_data['classification'].get('reasoning', '')) > 200 else feedback_data['classification'].get('reasoning', '')
+            }
+            writer.writerow(row)
+    except Exception as e:
+        st.error(f"Error saving feedback: {e}")
+
+def load_feedback_data() -> List[Dict]:
+    """Load all feedback data from CSV file"""
+    try:
+        feedback_file = os.path.join(FEEDBACK_DIR, "classification_feedback.csv")
+        if os.path.exists(feedback_file):
+            with open(feedback_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                return list(reader)
+        return []
+    except Exception as e:
+        st.error(f"Error loading feedback: {e}")
+        return []
 
 # Force light theme
 
@@ -3513,7 +3563,7 @@ def main():
 
             "Choose a page:",
 
-            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics"]
+            ["🏠 Dashboard", "🔍 Search Drugs", "🎯 Search Targets", "🧬 MOA Analysis", "🔄 Drug Repurposing", "🔬 Mechanism Classification", "📊 Statistics", "🌐 Network Visualization", "🎨 3D Network", "💡 Drug Discovery", "📈 Advanced Analytics", "📝 Feedback Review"]
 
         )
 
@@ -3564,6 +3614,10 @@ def main():
             elif page == "📈 Advanced Analytics":
 
                 show_advanced_analytics(app)
+                
+            elif page == "📝 Feedback Review":
+
+                show_feedback_review(app)
 
                 
 
@@ -5920,6 +5974,61 @@ def show_drug_search(app):
                                 st.markdown("**📝 Scientific Reasoning**")
                                 st.write(existing_classification['reasoning'])
                                 st.caption(f"Source: {existing_classification['source']} | {existing_classification['timestamp'][:10]}")
+                                
+                                # Add feedback mechanism
+                                st.markdown("---")
+                                st.markdown("**📝 Is this classification accurate?**")
+                                feedback_col1, feedback_col2, feedback_col3 = st.columns([1, 1, 2])
+                                
+                                with feedback_col1:
+                                    if st.button("✅ Correct", key=f"feedback_correct_{selected_drug}_{target}", type="primary"):
+                                        # Store positive feedback
+                                        feedback_key = f"feedback_{selected_drug}_{target}"
+                                        if 'classification_feedback' not in st.session_state:
+                                            st.session_state['classification_feedback'] = {}
+                                        feedback_data = {
+                                            'drug': selected_drug,
+                                            'target': target,
+                                            'feedback': 'correct',
+                                            'timestamp': str(pd.Timestamp.now()),
+                                            'user': st.session_state.get('current_user', 'anonymous'),
+                                            'classification': existing_classification
+                                        }
+                                        st.session_state['classification_feedback'][feedback_key] = feedback_data
+                                        # Save to file for analysis
+                                        save_feedback_to_file(feedback_data)
+                                        st.success("👍 Thank you! Feedback recorded as CORRECT")
+                                
+                                with feedback_col2:
+                                    if st.button("❌ Incorrect", key=f"feedback_incorrect_{selected_drug}_{target}", type="secondary"):
+                                        # Store negative feedback
+                                        feedback_key = f"feedback_{selected_drug}_{target}"
+                                        if 'classification_feedback' not in st.session_state:
+                                            st.session_state['classification_feedback'] = {}
+                                        feedback_data = {
+                                            'drug': selected_drug,
+                                            'target': target,
+                                            'feedback': 'incorrect',
+                                            'timestamp': str(pd.Timestamp.now()),
+                                            'user': st.session_state.get('current_user', 'anonymous'),
+                                            'classification': existing_classification
+                                        }
+                                        st.session_state['classification_feedback'][feedback_key] = feedback_data
+                                        # Save to file for analysis
+                                        save_feedback_to_file(feedback_data)
+                                        st.error("👎 Thank you! Feedback recorded as INCORRECT")
+                                
+                                with feedback_col3:
+                                    # Show current feedback status
+                                    feedback_key = f"feedback_{selected_drug}_{target}"
+                                    if 'classification_feedback' in st.session_state and feedback_key in st.session_state['classification_feedback']:
+                                        feedback = st.session_state['classification_feedback'][feedback_key]
+                                        if feedback['feedback'] == 'correct':
+                                            st.success(f"✅ Marked as correct by {feedback['user']}")
+                                        else:
+                                            st.error(f"❌ Marked as incorrect by {feedback['user']}")
+                                    else:
+                                        st.info("⏳ No feedback yet")
 
                             else:
 
@@ -9286,6 +9395,133 @@ def show_mechanism_classification(app):
 
             st.info("💡 **Suggestions:** Try searching for common drugs like 'aspirin', 'morphine', or 'acetaminophen'.")
 
+def show_feedback_review(app):
+    """Show classification feedback review page"""
+    st.header("📝 Classification Feedback Review")
+    
+    st.markdown("""
+    **Review user feedback on classification accuracy to improve the system.**
+    
+    This page shows all feedback collected from users about classification results.
+    """)
+    
+    # Load feedback data
+    feedback_data = load_feedback_data()
+    
+    if not feedback_data:
+        st.info("📊 No feedback data available yet. Users need to provide feedback on classifications first.")
+        st.markdown("""
+        **How to get feedback:**
+        1. Search for drugs and view their targets
+        2. Click on target details to see classifications
+        3. Users can mark classifications as ✅ Correct or ❌ Incorrect
+        4. Feedback will appear here for analysis
+        """)
+        return
+    
+    # Convert to DataFrame
+    import pandas as pd
+    df = pd.DataFrame(feedback_data)
+    
+    # Summary metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("📊 Total Feedback", len(df))
+    
+    with col2:
+        correct_count = len(df[df['feedback'] == 'correct'])
+        st.metric("✅ Marked Correct", correct_count)
+    
+    with col3:
+        incorrect_count = len(df[df['feedback'] == 'incorrect'])
+        st.metric("❌ Marked Incorrect", incorrect_count)
+    
+    with col4:
+        if len(df) > 0:
+            accuracy = (correct_count / len(df)) * 100
+            st.metric("🎯 Accuracy Rate", f"{accuracy:.1f}%")
+    
+    # Filters
+    st.markdown("### 🔍 Filters")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        feedback_filter = st.selectbox("Feedback Type", ["All", "Correct", "Incorrect"])
+    
+    with col2:
+        user_filter = st.selectbox("User", ["All"] + list(df['user'].unique()))
+    
+    with col3:
+        relationship_filter = st.selectbox("Relationship Type", ["All"] + list(df['relationship_type'].unique()))
+    
+    # Apply filters
+    filtered_df = df.copy()
+    
+    if feedback_filter != "All":
+        filtered_df = filtered_df[filtered_df['feedback'] == feedback_filter.lower()]
+    
+    if user_filter != "All":
+        filtered_df = filtered_df[filtered_df['user'] == user_filter]
+    
+    if relationship_filter != "All":
+        filtered_df = filtered_df[filtered_df['relationship_type'] == relationship_filter]
+    
+    # Display filtered results
+    st.markdown(f"### 📋 Feedback Results ({len(filtered_df)} items)")
+    
+    if len(filtered_df) > 0:
+        # Reorder columns for better display
+        display_columns = ['timestamp', 'user', 'drug', 'target', 'feedback', 
+                          'relationship_type', 'mechanism', 'confidence']
+        
+        # Format the DataFrame for display
+        display_df = filtered_df[display_columns].copy()
+        display_df['timestamp'] = pd.to_datetime(display_df['timestamp']).dt.strftime('%Y-%m-%d %H:%M')
+        display_df['confidence'] = pd.to_numeric(display_df['confidence'], errors='coerce').fillna(0)
+        display_df['confidence'] = display_df['confidence'].apply(lambda x: f"{x:.1%}" if x <= 1 else f"{x:.1f}%")
+        
+        # Color-code feedback
+        def highlight_feedback(row):
+            if row['feedback'] == 'correct':
+                return ['background-color: #d4edda'] * len(row)
+            elif row['feedback'] == 'incorrect':
+                return ['background-color: #f8d7da'] * len(row)
+            return [''] * len(row)
+        
+        styled_df = display_df.style.apply(highlight_feedback, axis=1)
+        st.dataframe(styled_df, use_container_width=True)
+        
+        # Export functionality
+        if st.button("📥 Export Feedback Data"):
+            csv_data = df.to_csv(index=False)
+            st.download_button(
+                label="⬇️ Download CSV",
+                data=csv_data,
+                file_name=f"classification_feedback_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+    else:
+        st.info("No feedback matches the selected filters.")
+    
+    # Analysis section
+    if len(df) > 0:
+        st.markdown("### 📈 Analysis")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Feedback by relationship type
+            st.markdown("**Feedback by Relationship Type:**")
+            feedback_by_type = df.groupby(['relationship_type', 'feedback']).size().unstack(fill_value=0)
+            st.bar_chart(feedback_by_type)
+        
+        with col2:
+            # Recent feedback trends
+            st.markdown("**Recent Activity:**")
+            df['date'] = pd.to_datetime(df['timestamp']).dt.date
+            recent_feedback = df.groupby('date').size().tail(7)
+            st.line_chart(recent_feedback)
 
 
 if __name__ == "__main__":
