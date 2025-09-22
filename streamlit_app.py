@@ -4705,7 +4705,13 @@ def show_drug_search(app):
     
     search_term = st.text_input("Enter drug name or partial name:", value=default_value, help="You can search for full names or just part of a drug name")
 
+    # Store search term in session state for persistence across reruns
+    if search_term:
+        st.session_state['last_search_term'] = search_term
     
+    # Use stored search term if current is empty but we have stored results
+    if not search_term and 'last_search_term' in st.session_state and 'search_results' in st.session_state:
+        search_term = st.session_state['last_search_term']
 
     if search_term:
 
