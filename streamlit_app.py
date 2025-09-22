@@ -4712,6 +4712,9 @@ def show_drug_search(app):
     # Use stored search term if current is empty but we have stored results
     if not search_term and 'last_search_term' in st.session_state and 'search_results' in st.session_state:
         search_term = st.session_state['last_search_term']
+    
+    # DEBUG: Show state
+    st.caption(f"🔍 DEBUG: search_term='{search_term}', session selected_drug='{st.session_state.get('selected_drug', 'None')}'")
 
     if search_term:
 
@@ -6132,6 +6135,8 @@ def show_drug_search(app):
                         network_data = None
                         # Show success message
                         st.success(f"🔄 Switched to drug-centered view for **{new_selected_drug}**")
+                        # DEBUG: Show what we just set
+                        st.caption(f"🔍 DEBUG: Just set selected_drug to '{new_selected_drug}', about to rerun")
                         # Force rerun to update the selectbox and entire page
                         st.rerun()
                     else:
