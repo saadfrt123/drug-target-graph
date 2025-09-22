@@ -6536,6 +6536,9 @@ def show_drug_search(app):
                     ))
                     
                     # Add all annotations at once after the loop
+                    # MOVED OUTSIDE LOOP - this was the bug!
+                    
+                    # Add all annotations at once after the loop ends
                     fig.update_layout(annotations=annotations)
                 else:
                     # Target-centered view: show drug nodes around the target
