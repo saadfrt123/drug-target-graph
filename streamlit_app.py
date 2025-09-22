@@ -4747,7 +4747,8 @@ def show_drug_search(app):
             
             selected_drug = st.selectbox("Select a drug for detailed view:", drug_options, index=default_index, key="drug_selectbox")
 
-            
+            # Update session state when selectbox changes
+            st.session_state['selected_drug'] = selected_drug
 
             if selected_drug:
 
