@@ -6844,12 +6844,15 @@ def show_drug_search(app):
                     st.markdown(f"**🎯 Currently centered on: {center_node}**")
                     st.markdown("**💊 Click a drug below to center the network on it:**")
                     if network_data and network_data['drugs']:
+                        st.caption(f"DEBUG: Found {len(network_data['drugs'])} drugs: {[d['drug'] for d in network_data['drugs']]}")
                         drug_cols = st.columns(min(4, len(network_data['drugs'])))
                         for i, drug in enumerate(network_data['drugs']):
                             with drug_cols[i % len(drug_cols)]:
                                 drug_name = drug['drug']
                                 button_text = f"💊 {drug_name}" if drug_name != selected_drug else f"⭐ {drug_name} (Original)"
-                                if st.button(button_text, key=f"center_drug_{selected_drug}_{drug_name}_{i}"):
+                                button_key = f"target_view_drug_{center_node}_{drug_name}_{i}"
+                                st.caption(f"DEBUG: Button '{button_text}' with key '{button_key}'")
+                                if st.button(button_text, key=button_key):
                                     st.session_state[center_key] = drug_name
                                     # CRITICAL: Also update the selectbox state
                                     st.session_state['selected_drug'] = drug_name
