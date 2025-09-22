@@ -6451,6 +6451,9 @@ def show_drug_search(app):
                 # Enhanced VIVID nodes with dramatic glow effects
                 if center_node == selected_drug:
                     # Drug-centered view: show target nodes
+                    # Collect all annotations first
+                    annotations = []
+                    
                     for x, y, target, ring_type in target_positions:
                         mech_info = target_mechanisms.get(target, {})
                         rel_type = mech_info.get('relationship_type', 'Unclassified')
@@ -6520,8 +6523,8 @@ def show_drug_search(app):
 
                     ))
                     
-                    # Add text annotation to ensure visibility
-                    fig.add_annotation(
+                    # Collect annotation for this target
+                    annotations.append(dict(
                         x=x, y=y,
                         text=target.upper(),
                         showarrow=False,
@@ -6530,7 +6533,10 @@ def show_drug_search(app):
                         bordercolor='white',
                         borderwidth=1,
                         xref='x', yref='y'
-                    )
+                    ))
+                    
+                    # Add all annotations at once after the loop
+                    fig.update_layout(annotations=annotations)
                 else:
                     # Target-centered view: show drug nodes around the target
                     for x, y, drug, ring_type in drug_positions:
