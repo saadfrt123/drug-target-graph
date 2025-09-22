@@ -6849,6 +6849,8 @@ def show_drug_search(app):
                                 button_text = f"💊 {drug_name}" if drug_name != selected_drug else f"⭐ {drug_name} (Original)"
                                 if st.button(button_text, key=f"center_drug_{selected_drug}_{drug_name}_{i}"):
                                     st.session_state[center_key] = drug_name
+                                    # CRITICAL: Also update the selectbox state
+                                    st.session_state['selected_drug'] = drug_name
                                     st.success(f"💊 Centering network on drug: {drug_name}")
                                     st.rerun()
                     else:
