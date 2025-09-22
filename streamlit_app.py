@@ -6524,7 +6524,7 @@ def show_drug_search(app):
                     ))
                     
                     # Collect annotation for this target
-                    annotations.append(dict(
+                    annotation = dict(
                         x=x, y=y,
                         text=target.upper(),
                         showarrow=False,
@@ -6533,7 +6533,9 @@ def show_drug_search(app):
                         bordercolor='white',
                         borderwidth=1,
                         xref='x', yref='y'
-                    ))
+                    )
+                    annotations.append(annotation)
+                    st.caption(f"DEBUG: Added annotation for {target} at ({x}, {y})")
                     
                     # Add all annotations at once after the loop
                     # MOVED OUTSIDE LOOP - this was the bug!
@@ -6711,6 +6713,7 @@ def show_drug_search(app):
                 # Add annotations if they exist (for drug-centered view)
                 if center_node == selected_drug and 'annotations' in locals():
                     layout_kwargs['annotations'] = annotations
+                    st.caption(f"DEBUG: Adding {len(annotations)} annotations to layout")
 
                 fig.update_layout(**layout_kwargs)
 
