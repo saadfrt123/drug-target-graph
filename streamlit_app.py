@@ -6520,16 +6520,17 @@ def show_drug_search(app):
 
                     ))
                     
-                    # Add text as separate trace to ensure visibility
-                    fig.add_trace(go.Scatter(
-                        x=[x], y=[y],
-                        mode='text',
-                        text=[target.upper()],
-                        textposition='middle center',
-                        textfont=dict(size=16, color='white', family='Arial Black'),
-                        showlegend=False,
-                        hoverinfo='skip'
-                    ))
+                    # Add text annotation to ensure visibility
+                    fig.add_annotation(
+                        x=x, y=y,
+                        text=target.upper(),
+                        showarrow=False,
+                        font=dict(size=16, color='white', family='Arial Black'),
+                        bgcolor='rgba(0,0,0,0.7)',
+                        bordercolor='white',
+                        borderwidth=1,
+                        xref='x', yref='y'
+                    )
                 else:
                     # Target-centered view: show drug nodes around the target
                     for x, y, drug, ring_type in drug_positions:
