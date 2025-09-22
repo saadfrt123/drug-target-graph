@@ -6056,6 +6056,10 @@ def show_drug_search(app):
             center_key = f'interactive_network_center_{selected_drug}'
             center_node = st.session_state.get(center_key, selected_drug)
             
+            # Store original selected drug for fallback
+            if 'original_selected_drug' not in st.session_state:
+                st.session_state['original_selected_drug'] = selected_drug
+            
             # Start background classification for all targets (only if not already cached)
             uncached_targets = [t for t in drug_details['targets'] if not app.is_cached(selected_drug, t)]
             if uncached_targets:
@@ -6066,21 +6070,36 @@ def show_drug_search(app):
                 targets = drug_details['targets']  # Show ALL targets
                 network_data = None
             else:
-                # Target-centered view: show target in center with all drugs targeting it
-                # Use cached network data for faster reorientation
-                cache_key = f"target_network_{center_node}"
-                if cache_key in st.session_state:
-                    network_data = st.session_state[cache_key]
+                # Check if center_node is a drug (from target-centered view drug selection)
+                if center_node in [d['drug'] for d in (network_data.get('drugs', []) if network_data else [])]:
+                    # Switch to drug-centered view for the selected drug
+                    selected_drug = center_node
+                    # Get drug details for the new selected drug
+                    drug_details = app.get_drug_details(selected_drug)
+                    if drug_details:
+                        targets = drug_details['targets']
+                        network_data = None
+                    else:
+                        # Fallback to original drug
+                        selected_drug = st.session_state.get('original_selected_drug', selected_drug)
+                        targets = drug_details['targets']
+                        network_data = None
                 else:
-                    network_data = app.get_target_network_data(center_node)
+                    # Target-centered view: show target in center with all drugs targeting it
+                    # Use cached network data for faster reorientation
+                    cache_key = f"target_network_{center_node}"
+                    if cache_key in st.session_state:
+                        network_data = st.session_state[cache_key]
+                    else:
+                        network_data = app.get_target_network_data(center_node)
+                        if network_data:
+                            st.session_state[cache_key] = network_data
+                    
                     if network_data:
-                        st.session_state[cache_key] = network_data
-                
-                if network_data:
-                    targets = [center_node]  # The centered target
-                else:
-                    targets = drug_details['targets']  # Fallback to drug view
-                    center_node = selected_drug
+                        targets = [center_node]  # The centered target
+                    else:
+                        targets = drug_details['targets']  # Fallback to drug view
+                        center_node = selected_drug
                     st.session_state[center_key] = selected_drug
 
             if targets:
@@ -6498,7 +6517,7 @@ def show_drug_search(app):
 
                         textposition='middle center',
 
-                        textfont=dict(size=14, color='black', family='Arial Black'),
+                        textfont=dict(size=14, color='white', family='Arial Black'),
 
                         showlegend=False,
 
@@ -6568,7 +6587,7 @@ def show_drug_search(app):
                                        opacity=0.9),
                             text=[drug],
                             textposition='middle center',
-                            textfont=dict(size=12, color='black', family='Arial Black'),
+                            textfont=dict(size=12, color='white', family='Arial Black'),
                             showlegend=False,
                             hovertemplate=drug_hover + '<extra></extra>',
                             hoverinfo='text'
