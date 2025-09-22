@@ -6500,15 +6500,11 @@ def show_drug_search(app):
                     
 
                     # Main target node with clean styling
-                    # Debug: Check if target has text
-                    if target:
-                        st.caption(f"Debug: Adding target node '{target}' at position ({x}, {y})")
-
                     fig.add_trace(go.Scatter(
 
                         x=[x], y=[y],
 
-                        mode='markers+text',
+                        mode='markers',
 
                         marker=dict(size=55, color=node_color, 
 
@@ -6516,18 +6512,23 @@ def show_drug_search(app):
 
                                    opacity=0.9),
 
-                        text=[target.upper()],
-
-                        textposition='middle center',
-
-                        textfont=dict(size=18, color='black', family='Arial Black'),
-
                         showlegend=False,
 
                         hovertemplate=target_hover + '<extra></extra>',
 
                         hoverinfo='text'
 
+                    ))
+                    
+                    # Add text as separate trace to ensure visibility
+                    fig.add_trace(go.Scatter(
+                        x=[x], y=[y],
+                        mode='text',
+                        text=[target.upper()],
+                        textposition='middle center',
+                        textfont=dict(size=16, color='white', family='Arial Black'),
+                        showlegend=False,
+                        hoverinfo='skip'
                     ))
                 else:
                     # Target-centered view: show drug nodes around the target
