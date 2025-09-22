@@ -6538,8 +6538,8 @@ def show_drug_search(app):
                     # Add all annotations at once after the loop
                     # MOVED OUTSIDE LOOP - this was the bug!
                     
-                    # Add all annotations at once after the loop ends
-                    fig.update_layout(annotations=annotations)
+                    # Store annotations to be added in the final layout update
+                    # (Don't call update_layout here - it gets overwritten later)
                 else:
                     # Target-centered view: show drug nodes around the target
                     for x, y, drug, ring_type in drug_positions:
@@ -6674,70 +6674,45 @@ def show_drug_search(app):
                     ))
 
                 # Clean, professional layout
-
-                fig.update_layout(
-                    title=dict(
+                # Include annotations in the final layout update
+                layout_kwargs = {
+                    'title': dict(
                         text=f"Drug-Target Network: {selected_drug}",
-
                         font=dict(size=20, color='#2C3E50', family='Arial'),
-
                         x=0.5
-
                     ),
-
-                    height=700,  # Reasonable size
-
-                    showlegend=True,
-
-                    legend=dict(
-
+                    'height': 700,  # Reasonable size
+                    'showlegend': True,
+                    'legend': dict(
                         x=0.02, y=0.98,
-
                         bgcolor='rgba(255,255,255,0.95)',
-
                         bordercolor='#BDC3C7',
-
                         borderwidth=1,
-
                         font=dict(size=12, color='#2C3E50', family='Arial')
-
                     ),
-
-                    plot_bgcolor='#F8F9FA',  # Light gray background
-
-                    paper_bgcolor='white',  # White paper
-
-                    margin=dict(l=50, r=50, t=80, b=50),
-
-                    xaxis=dict(
-
+                    'plot_bgcolor': '#F8F9FA',  # Light gray background
+                    'paper_bgcolor': 'white',  # White paper
+                    'margin': dict(l=50, r=50, t=80, b=50),
+                    'xaxis': dict(
                         showgrid=False,
-
                         zeroline=False, 
-
                         showticklabels=False,
-
                         range=[-12, 12],  # Appropriate range
-
-                        scaleanchor="y",
-
                         scaleratio=1
-
                     ),
-
-                    yaxis=dict(
-
+                    'yaxis': dict(
                         showgrid=False,
-
                         zeroline=False, 
-
                         showticklabels=False,
-
                         range=[-10, 10]  # Appropriate range
-
                     )
+                }
+                
+                # Add annotations if they exist (for drug-centered view)
+                if center_node == selected_drug and 'annotations' in locals():
+                    layout_kwargs['annotations'] = annotations
 
-                )
+                fig.update_layout(**layout_kwargs)
 
 
 
