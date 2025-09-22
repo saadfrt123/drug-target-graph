@@ -6083,12 +6083,22 @@ def show_drug_search(app):
                 
                 if network_data and center_node in [d['drug'] for d in network_data.get('drugs', [])]:
                     # Switch to drug-centered view for the selected drug
-                    selected_drug = center_node
+                    new_selected_drug = center_node
                     # Get drug details for the new selected drug
-                    drug_details = app.get_drug_details(selected_drug)
-                    if drug_details:
+                    new_drug_details = app.get_drug_details(new_selected_drug)
+                    if new_drug_details:
+                        # Update session state to reflect the new drug
+                        st.session_state['selected_drug'] = new_selected_drug
+                        # Update the center key to point to the new drug
+                        st.session_state[center_key] = new_selected_drug
+                        # Update local variables
+                        selected_drug = new_selected_drug
+                        drug_details = new_drug_details
                         targets = drug_details['targets']
+                        center_node = new_selected_drug
                         network_data = None
+                        # Force rerun to update the entire page
+                        st.rerun()
                     else:
                         # Fallback to original drug
                         selected_drug = st.session_state.get('original_selected_drug', selected_drug)
