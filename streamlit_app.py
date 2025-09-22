@@ -6071,7 +6071,17 @@ def show_drug_search(app):
                 network_data = None
             else:
                 # Check if center_node is a drug (from target-centered view drug selection)
-                if center_node in [d['drug'] for d in (network_data.get('drugs', []) if network_data else [])]:
+                # First get network_data if we don't have it
+                if 'network_data' not in locals() or network_data is None:
+                    cache_key = f"target_network_{center_node}"
+                    if cache_key in st.session_state:
+                        network_data = st.session_state[cache_key]
+                    else:
+                        network_data = app.get_target_network_data(center_node)
+                        if network_data:
+                            st.session_state[cache_key] = network_data
+                
+                if network_data and center_node in [d['drug'] for d in network_data.get('drugs', [])]:
                     # Switch to drug-centered view for the selected drug
                     selected_drug = center_node
                     # Get drug details for the new selected drug
