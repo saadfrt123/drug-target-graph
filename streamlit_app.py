@@ -6631,9 +6631,9 @@ def show_drug_search(app):
                     target_x, target_y = 0, 0  # Target is at center
                     for x, y, drug, ring_type in drug_positions:
                         # Get drug info
-                        drug_info = next((d for d in network_data['drugs'] if d['drug'] == drug), {})
-                        moa = drug_info.get('moa', 'Unknown')
-                        phase = drug_info.get('phase', 'Unknown')
+                        drug_info = next((d for d in network_data['drugs'] if d['drug_name'] == drug), {})
+                        moa = drug_info.get('drug_moa', 'Unknown')
+                        phase = drug_info.get('drug_phase', 'Unknown')
                         
                         # Get mechanism info for this drug-target pair
                         mech_info = app.get_cached_classification(drug, center_node)
@@ -6719,7 +6719,7 @@ def show_drug_search(app):
                         try:
                             mech_info = target_mechanisms.get(target, {})
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
-                            mechanism = mech_info.get('mechanism', 'Unclassified')
+                            mechanism = mech_info.get('mechanism', 'Under Analysis')
                             confidence = mech_info.get('confidence', 0)
 
                             # Clean color scheme matching edges
@@ -6804,9 +6804,9 @@ def show_drug_search(app):
                     # Target-centered view: show drug nodes around the target
                     for x, y, drug, ring_type in drug_positions:
                         # Get drug info
-                        drug_info = next((d for d in network_data['drugs'] if d['drug'] == drug), {})
-                        moa = drug_info.get('moa', 'Unknown')
-                        phase = drug_info.get('phase', 'Unknown')
+                        drug_info = next((d for d in network_data['drugs'] if d['drug_name'] == drug), {})
+                        moa = drug_info.get('drug_moa', 'Unknown')
+                        phase = drug_info.get('drug_phase', 'Unknown')
                         
                         # Get mechanism info for this drug-target pair
                         mech_info = app.get_cached_classification(drug, center_node)
