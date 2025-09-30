@@ -6176,7 +6176,7 @@ def show_drug_search(app):
 
                         target_mechanisms[target] = {
 
-                            'mechanism': classification.get('mechanism', 'Under Analysis') or 'Under Analysis',
+                            'mechanism': classification.get('mechanism', 'Unknown'),
 
                             'relationship_type': classification.get('relationship_type', 'Unknown'),
 
@@ -6527,7 +6527,9 @@ def show_drug_search(app):
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
-                        mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
+                        mechanism = mech_info.get('mechanism', 'Under Analysis')
+                        if not mechanism or mechanism.strip() == '':
+                            mechanism = 'Under Analysis'
                         
                         try:
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
@@ -6652,7 +6654,9 @@ def show_drug_search(app):
                                 mech_info = {}
                         
                         # Extract classification results
-                        mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
+                        mechanism = mech_info.get('mechanism', 'Under Analysis')
+                        if not mechanism or mechanism.strip() == '':
+                            mechanism = 'Under Analysis'
                         rel_type = mech_info.get('relationship_type', 'Unclassified')
                         confidence = mech_info.get('confidence', 0)
                         
@@ -6719,7 +6723,9 @@ def show_drug_search(app):
                         try:
                             mech_info = target_mechanisms.get(target, {})
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
-                            mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
+                            mechanism = mech_info.get('mechanism', 'Under Analysis')
+                            if not mechanism or mechanism.strip() == '':
+                                mechanism = 'Under Analysis'
                             confidence = mech_info.get('confidence', 0)
 
                             # Clean color scheme matching edges
