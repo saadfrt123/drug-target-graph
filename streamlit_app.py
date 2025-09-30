@@ -6515,7 +6515,7 @@ def show_drug_search(app):
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
-                        mechanism = mech_info.get('mechanism', 'Under Analysis')
+                        mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
                         if not mechanism or mechanism.strip() == '':
                             mechanism = 'Under Analysis'
                         
