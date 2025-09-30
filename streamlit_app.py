@@ -6176,7 +6176,7 @@ def show_drug_search(app):
 
                         target_mechanisms[target] = {
 
-                            'mechanism': classification.get('mechanism', 'Unknown'),
+                            'mechanism': classification.get('mechanism', 'Under Analysis') or 'Under Analysis',
 
                             'relationship_type': classification.get('relationship_type', 'Unknown'),
 
@@ -6340,22 +6340,10 @@ def show_drug_search(app):
                     if network_data:
                         targets = [center_node]  # The centered target
                         
-                        # Start immediate classification for all drugs in target-centered view
-                        if 'drugs' in network_data:
-                            for drug_info in network_data['drugs']:
-                                drug_name = drug_info['drug']
-                                # Force immediate classification if not cached
-                                if not app.is_cached(drug_name, center_node):
-                                    try:
-                                        mech_info = app.get_drug_target_classification(drug_name, center_node)
-                                        if mech_info:
-                                            # Cache the result immediately
-                                            cache_key = f"{drug_name}_{center_node}"
-                                            app._classification_cache[cache_key] = mech_info
-                                            persistent_key = get_cache_key(drug_name, center_node)
-                                            save_to_cache(persistent_key, mech_info)
-                                    except Exception as e:
-                                        st.error(f"Immediate classification error for {drug_name}-{center_node}: {e}")
+                        # Populate target_mechanisms for target-centered view
+                        # In target-centered view, we need to get the mechanism for the specific drug being hovered
+                        # This will be populated in the hover logic based on the selected drug
+                        target_mechanisms = {}
                     else:
                         targets = drug_details['targets']  # Fallback to drug view
                         center_node = selected_drug
@@ -6721,7 +6709,16 @@ def show_drug_search(app):
                     
                     for i, (x, y, target, ring_type) in enumerate(target_positions):
                         try:
+                            # Drug-centered view: use target_mechanisms as before
                             mech_info = target_mechanisms.get(target, {})
+                            
+                            # DEBUG: Check what's actually in the mechanism data
+                            st.write(f"🔍 DEBUG TARGET {target}: mech_info = {mech_info}")
+                            if target in target_mechanisms:
+                                st.write(f"🔍 DEBUG: Found {target} in target_mechanisms")
+                            else:
+                                st.write(f"🔍 DEBUG: {target} NOT FOUND in target_mechanisms. Available keys: {list(target_mechanisms.keys())}")
+                            
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
                             mechanism = mech_info.get('mechanism', 'Under Analysis')
                             if not mechanism or mechanism.strip() == '':
