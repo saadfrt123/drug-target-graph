@@ -3739,7 +3739,7 @@ def show_dashboard(app):
 
     
 
-    st.header("📊 Database Overview")
+    st.markdown("# 📊 Database Overview")
 
     
 
@@ -3758,56 +3758,29 @@ def show_dashboard(app):
         
 
         with col1:
-
-            st.markdown(f"""
-
-            <div class="metric-card">
-
-                <h3>💊 Total Drugs</h3>
-
-                <h2>{stats['drug_count']:,}</h2>
-
-                <p>Pharmaceutical compounds</p>
-
-            </div>
-
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="💊 Total Drugs",
+                value=f"{stats['drug_count']:,}",
+                help="Pharmaceutical compounds in database"
+            )
 
         
 
         with col2:
-
-            st.markdown(f"""
-
-            <div class="metric-card">
-
-                <h3>🎯 Total Targets</h3>
-
-                <h2>{stats['target_count']:,}</h2>
-
-                <p>Biological targets</p>
-
-            </div>
-
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="🎯 Total Targets",
+                value=f"{stats['target_count']:,}",
+                help="Biological targets in database"
+            )
 
         
 
         with col3:
-
-            st.markdown(f"""
-
-            <div class="metric-card">
-
-                <h3>🔗 Total Relationships</h3>
-
-                <h2>{stats['relationship_count']:,}</h2>
-
-                <p>Drug-target interactions</p>
-
-            </div>
-
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="🔗 Total Relationships", 
+                value=f"{stats['relationship_count']:,}",
+                help="Drug-target interactions in database"
+            )
 
         
 
@@ -3824,24 +3797,13 @@ def show_dashboard(app):
             top_drugs = app.get_top_drugs_by_targets(5)
 
             if top_drugs:
-
                 for drug in top_drugs:
-
-                    st.markdown(f"""
-
-                    <div class="drug-card">
-
-                        <h4>{drug['drug']}</h4>
-
-                        <p><strong>Targets:</strong> {drug['target_count']}</p>
-
-                        <p><strong>MOA:</strong> {drug['moa']}</p>
-
-                        <p><strong>Phase:</strong> {drug['phase']}</p>
-
-                    </div>
-
-                    """, unsafe_allow_html=True)
+                    with st.container():
+                        st.markdown(f"**{drug['drug']}**")
+                        st.write(f"**Targets:** {drug['target_count']}")
+                        st.write(f"**MOA:** {drug['moa']}")
+                        st.write(f"**Phase:** {drug['phase']}")
+                        st.divider()
 
         
 
@@ -3852,22 +3814,12 @@ def show_dashboard(app):
             top_targets = app.get_top_targets_by_drugs(5)
 
             if top_targets:
-
                 for target in top_targets:
-
-                    st.markdown(f"""
-
-                    <div class="target-card">
-
-                        <h4>{target['target']}</h4>
-
-                        <p><strong>Drugs:</strong> {target['drug_count']}</p>
-
-                        <p>Targeted by multiple compounds</p>
-
-                    </div>
-
-                    """, unsafe_allow_html=True)
+                    with st.container():
+                        st.markdown(f"**{target['target']}**")
+                        st.write(f"**Drugs:** {target['drug_count']}")
+                        st.write("Targeted by multiple compounds")
+                        st.divider()
 
         
 
