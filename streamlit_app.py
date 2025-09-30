@@ -1195,6 +1195,70 @@ st.markdown("""
         color: #333333 !important;
 
     }
+    
+    /* Additional CSS for stubborn table elements */
+    .stDataFrame > div > div > div > div {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* More aggressive table targeting */
+    div[data-testid="stDataFrame"] > div {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    div[data-testid="stDataFrame"] > div * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* Target any remaining table containers */
+    .stDataFrame .row_heading,
+    .stDataFrame .col_heading,
+    .stDataFrame .data {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* Force visibility for any DataFrame cells */
+    .stDataFrame tbody tr:nth-child(odd) td {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    .stDataFrame tbody tr:nth-child(even) td {
+        background-color: #f8f9fa !important;
+        color: #333333 !important;
+    }
+    
+    /* Ensure headers are always visible */
+    .stDataFrame thead tr th {
+        background-color: #e9ecef !important;
+        color: #495057 !important;
+        font-weight: bold !important;
+        border: 1px solid #ddd !important;
+    }
+    
+    /* Last resort - target all potential DataFrame elements */
+    [class*="DataFrame"] {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    [class*="DataFrame"] * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    /* Target AG Grid elements (if used) */
+    .ag-root-wrapper,
+    .ag-root-wrapper *,
+    .ag-root,
+    .ag-root * {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
 
 </style>
 
@@ -6711,13 +6775,6 @@ def show_drug_search(app):
                         try:
                             # Drug-centered view: use target_mechanisms as before
                             mech_info = target_mechanisms.get(target, {})
-                            
-                            # DEBUG: Check what's actually in the mechanism data
-                            st.write(f"🔍 DEBUG TARGET {target}: mech_info = {mech_info}")
-                            if target in target_mechanisms:
-                                st.write(f"🔍 DEBUG: Found {target} in target_mechanisms")
-                            else:
-                                st.write(f"🔍 DEBUG: {target} NOT FOUND in target_mechanisms. Available keys: {list(target_mechanisms.keys())}")
                             
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
                             mechanism = mech_info.get('mechanism', 'Under Analysis')
