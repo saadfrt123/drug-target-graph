@@ -8766,7 +8766,17 @@ def show_moa_analysis(app):
 
                 
 
-                st.dataframe(display_df, use_container_width=True)
+                # Apply styling to make table visible
+                styled_df = display_df.style.set_properties(**{
+                    'background-color': 'white',
+                    'color': 'black',
+                    'border': '1px solid #ddd'
+                }).set_table_styles([
+                    {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
+                    {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
+                    {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
+                ])
+                st.dataframe(styled_df, use_container_width=True)
                 
 
                 # MOA Pattern Analysis
@@ -8829,7 +8839,17 @@ def show_moa_analysis(app):
 
             classes_df.columns = ['Therapeutic Class', 'MOA Count', 'Drug Count']
 
-            st.dataframe(classes_df, use_container_width=True)
+            # Apply styling to make table visible
+            styled_classes_df = classes_df.style.set_properties(**{
+                'background-color': 'white',
+                'color': 'black',
+                'border': '1px solid #ddd'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
+                {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
+                {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
+            ])
+            st.dataframe(styled_classes_df, use_container_width=True)
             
 
             # Visualize therapeutic classes
@@ -8874,7 +8894,17 @@ def show_moa_analysis(app):
 
             display_cols = ['MOA', 'Drug Count', 'Target Count', 'Therapeutic Class']
 
-            st.dataframe(moa_df[display_cols], use_container_width=True)
+            # Apply styling to make table visible
+            styled_moa_df = moa_df[display_cols].style.set_properties(**{
+                'background-color': 'white',
+                'color': 'black',
+                'border': '1px solid #ddd'
+            }).set_table_styles([
+                {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
+                {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
+                {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
+            ])
+            st.dataframe(styled_moa_df, use_container_width=True)
 
 
 def show_drug_repurposing(app):
