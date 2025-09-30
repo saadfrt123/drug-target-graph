@@ -2837,7 +2837,7 @@ class DrugTargetGraphApp:
                         }
                     else:
                         target_mechanisms[drug_name] = {
-                            'mechanism': 'Unclassified',
+                            'mechanism': 'Under Analysis',
                             'relationship_type': 'Unclassified',
                             'target_class': 'Unknown',
                             'target_subclass': 'Unknown',
@@ -6176,7 +6176,7 @@ def show_drug_search(app):
 
                         target_mechanisms[target] = {
 
-                            'mechanism': classification.get('mechanism', 'Unknown'),
+                            'mechanism': classification.get('mechanism', 'Under Analysis') or 'Under Analysis',
 
                             'relationship_type': classification.get('relationship_type', 'Unknown'),
 
@@ -6206,7 +6206,7 @@ def show_drug_search(app):
 
                         target_mechanisms[target] = {
 
-                            'mechanism': 'Unclassified',
+                            'mechanism': 'Under Analysis',
 
                             'relationship_type': 'Unclassified',
 
@@ -6527,7 +6527,7 @@ def show_drug_search(app):
                     for x, y, target, ring_type in target_positions:
                         # Get comprehensive mechanism info for this target
                         mech_info = target_mechanisms.get(target, {})
-                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
                         
                         try:
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
@@ -6594,7 +6594,7 @@ def show_drug_search(app):
 
                     # Add clean mechanism labels - only for primary effects to reduce clutter
 
-                    if mechanism != 'Unclassified' and mechanism != 'Unknown' and rel_type == 'Primary/On-Target':
+                    if mechanism not in ['Under Analysis', 'Unknown'] and rel_type == 'Primary/On-Target':
                         mid_x = (drug_x + x) / 2
                         mid_y = (drug_y + y) / 2
                         
@@ -6652,7 +6652,7 @@ def show_drug_search(app):
                                 mech_info = {}
                         
                         # Extract classification results
-                        mechanism = mech_info.get('mechanism', 'Unclassified')
+                        mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
                         rel_type = mech_info.get('relationship_type', 'Unclassified')
                         confidence = mech_info.get('confidence', 0)
                         
@@ -6719,7 +6719,7 @@ def show_drug_search(app):
                         try:
                             mech_info = target_mechanisms.get(target, {})
                             rel_type = mech_info.get('relationship_type', 'Unclassified')
-                            mechanism = mech_info.get('mechanism', 'Under Analysis')
+                            mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
                             confidence = mech_info.get('confidence', 0)
 
                             # Clean color scheme matching edges
