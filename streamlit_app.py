@@ -6743,7 +6743,9 @@ def show_drug_search(app):
                                 glow_color = 'rgba(149, 165, 166, 0.3)'
 
                             # Enhanced hover info with rich styling
-                            actual_mechanism = mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis'
+                            actual_mechanism = str(mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis')
+                            # Escape any problematic characters
+                            actual_mechanism = actual_mechanism.replace(';', '&#59;').replace('"', '&quot;').replace("'", '&#39;')
                             target_hover = f"""
                             <b style="font-size:18px; color:{border_color}">{target}</b><br>
                             <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
