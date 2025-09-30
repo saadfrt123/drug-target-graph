@@ -6742,17 +6742,12 @@ def show_drug_search(app):
                                 text_color = 'white'
                                 glow_color = 'rgba(149, 165, 166, 0.3)'
 
-                            # Enhanced hover info with rich styling
-                            actual_mechanism = str(mech_info.get('mechanism', 'Under Analysis') or 'Under Analysis')
-                            # Escape any problematic characters
-                            actual_mechanism = actual_mechanism.replace(';', '&#59;').replace('"', '&quot;').replace("'", '&#39;')
-                            target_hover = f"""
-                            <b style="font-size:18px; color:{border_color}">{target}</b><br>
-                            <b>Effect Type:</b> <span style="color:{border_color}">{rel_type}</span><br>
-                            <b>Mechanism:</b> <span style="color:white">{actual_mechanism}</span><br>
-                            <b>Confidence:</b> <span style="color:gold">{confidence:.0%}</span><br>
-                            <b>Target Class:</b> <span style="color:lightblue">{mech_info.get('target_class', 'Unknown')}</span>
-                            """
+                            # Simple, working hover info
+                            mechanism_text = mech_info.get('mechanism', 'Under Analysis')
+                            if not mechanism_text:
+                                mechanism_text = 'Under Analysis'
+                            
+                            target_hover = f"{target}<br>Effect Type: {rel_type}<br>Mechanism: {mechanism_text}<br>Confidence: {confidence:.0%}<br>Target Class: {mech_info.get('target_class', 'Unknown')}"
                             
                             # Add subtle glow effect for nodes - single layer
                             fig.add_trace(go.Scatter(
