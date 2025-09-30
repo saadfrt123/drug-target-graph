@@ -8766,17 +8766,32 @@ def show_moa_analysis(app):
 
                 
 
-                # Apply styling to make table visible
-                styled_df = display_df.style.set_properties(**{
-                    'background-color': 'white',
-                    'color': 'black',
-                    'border': '1px solid #ddd'
-                }).set_table_styles([
-                    {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
-                    {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
-                    {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
-                ])
-                st.dataframe(styled_df, use_container_width=True)
+                # Use st.table() for better visibility or HTML table
+                st.markdown("### Search Results")
+                
+                # Convert to HTML table with explicit styling
+                html_table = """
+                <div style="background-color: white; padding: 10px; border-radius: 5px;">
+                <table style="width: 100%; border-collapse: collapse; background-color: white;">
+                <thead>
+                <tr style="background-color: #f8f9fa;">
+                """
+                
+                # Add headers
+                for col in display_df.columns:
+                    html_table += f'<th style="padding: 8px; border: 1px solid #ddd; color: black; font-weight: bold;">{col}</th>'
+                html_table += "</tr></thead><tbody>"
+                
+                # Add rows
+                for idx, row in display_df.iterrows():
+                    bg_color = "#f8f9fa" if idx % 2 == 1 else "white"
+                    html_table += f'<tr style="background-color: {bg_color};">'
+                    for value in row:
+                        html_table += f'<td style="padding: 8px; border: 1px solid #ddd; color: black;">{value}</td>'
+                    html_table += "</tr>"
+                
+                html_table += "</tbody></table></div>"
+                st.markdown(html_table, unsafe_allow_html=True)
                 
 
                 # MOA Pattern Analysis
@@ -8839,17 +8854,29 @@ def show_moa_analysis(app):
 
             classes_df.columns = ['Therapeutic Class', 'MOA Count', 'Drug Count']
 
-            # Apply styling to make table visible
-            styled_classes_df = classes_df.style.set_properties(**{
-                'background-color': 'white',
-                'color': 'black',
-                'border': '1px solid #ddd'
-            }).set_table_styles([
-                {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
-                {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
-                {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
-            ])
-            st.dataframe(styled_classes_df, use_container_width=True)
+            # Convert to HTML table with explicit styling
+            html_table = """
+            <div style="background-color: white; padding: 10px; border-radius: 5px;">
+            <table style="width: 100%; border-collapse: collapse; background-color: white;">
+            <thead>
+            <tr style="background-color: #f8f9fa;">
+            """
+            
+            # Add headers
+            for col in classes_df.columns:
+                html_table += f'<th style="padding: 8px; border: 1px solid #ddd; color: black; font-weight: bold;">{col}</th>'
+            html_table += "</tr></thead><tbody>"
+            
+            # Add rows
+            for idx, row in classes_df.iterrows():
+                bg_color = "#f8f9fa" if idx % 2 == 1 else "white"
+                html_table += f'<tr style="background-color: {bg_color};">'
+                for value in row:
+                    html_table += f'<td style="padding: 8px; border: 1px solid #ddd; color: black;">{value}</td>'
+                html_table += "</tr>"
+            
+            html_table += "</tbody></table></div>"
+            st.markdown(html_table, unsafe_allow_html=True)
             
 
             # Visualize therapeutic classes
@@ -8894,17 +8921,30 @@ def show_moa_analysis(app):
 
             display_cols = ['MOA', 'Drug Count', 'Target Count', 'Therapeutic Class']
 
-            # Apply styling to make table visible
-            styled_moa_df = moa_df[display_cols].style.set_properties(**{
-                'background-color': 'white',
-                'color': 'black',
-                'border': '1px solid #ddd'
-            }).set_table_styles([
-                {'selector': 'th', 'props': [('background-color', '#f8f9fa'), ('color', 'black'), ('font-weight', 'bold')]},
-                {'selector': 'td', 'props': [('background-color', 'white'), ('color', 'black')]},
-                {'selector': 'tr:nth-child(even)', 'props': [('background-color', '#f8f9fa')]}
-            ])
-            st.dataframe(styled_moa_df, use_container_width=True)
+            # Convert to HTML table with explicit styling
+            moa_display_df = moa_df[display_cols]
+            html_table = """
+            <div style="background-color: white; padding: 10px; border-radius: 5px;">
+            <table style="width: 100%; border-collapse: collapse; background-color: white;">
+            <thead>
+            <tr style="background-color: #f8f9fa;">
+            """
+            
+            # Add headers
+            for col in moa_display_df.columns:
+                html_table += f'<th style="padding: 8px; border: 1px solid #ddd; color: black; font-weight: bold;">{col}</th>'
+            html_table += "</tr></thead><tbody>"
+            
+            # Add rows
+            for idx, row in moa_display_df.iterrows():
+                bg_color = "#f8f9fa" if idx % 2 == 1 else "white"
+                html_table += f'<tr style="background-color: {bg_color};">'
+                for value in row:
+                    html_table += f'<td style="padding: 8px; border: 1px solid #ddd; color: black;">{value}</td>'
+                html_table += "</tr>"
+            
+            html_table += "</tbody></table></div>"
+            st.markdown(html_table, unsafe_allow_html=True)
 
 
 def show_drug_repurposing(app):
