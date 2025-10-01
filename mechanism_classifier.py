@@ -40,8 +40,23 @@ class DrugTargetMechanismClassifier:
         # Initialize Gemini API
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
-            self.gemini_model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("Gemini API initialized successfully")
+            
+            # Try different model names in order of preference
+            model_names = ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.0-pro']
+            self.gemini_model = None
+            
+            for model_name in model_names:
+                try:
+                    self.gemini_model = genai.GenerativeModel(model_name)
+                    logger.info(f"Gemini API initialized successfully with model: {model_name}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Failed to initialize model {model_name}: {e}")
+                    continue
+            
+            if not self.gemini_model:
+                logger.error("Failed to initialize any Gemini model")
+                self.gemini_model = None
         else:
             logger.warning("No Gemini API key provided - classification will be disabled")
             self.gemini_model = None

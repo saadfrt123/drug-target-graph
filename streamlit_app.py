@@ -4974,11 +4974,15 @@ def show_drug_search(app):
 
                                         classified_count += 1
 
+                                    else:
+                                        st.warning(f"⚠️ Failed to classify {selected_drug} → {target}")
+
                                 except Exception as e:
 
                                     # Log the error but continue with other classifications
 
                                     logger.warning(f"Classification failed for {selected_drug} → {target}: {e}")
+                                    st.warning(f"⚠️ Error classifying {selected_drug} → {target}: {str(e)}")
 
                                 
 
