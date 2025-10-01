@@ -48,10 +48,13 @@ class DrugTargetMechanismClassifier:
             for model_name in model_names:
                 try:
                     self.gemini_model = genai.GenerativeModel(model_name)
-                    logger.info(f"Gemini API initialized successfully with model: {model_name}")
+                    # Test the model with a simple query
+                    test_response = self.gemini_model.generate_content("Hello, respond with 'API working'")
+                    logger.info(f"Gemini API initialized and tested successfully with model: {model_name}")
+                    logger.info(f"Test response: {test_response.text}")
                     break
                 except Exception as e:
-                    logger.warning(f"Failed to initialize model {model_name}: {e}")
+                    logger.warning(f"Failed to initialize or test model {model_name}: {e}")
                     continue
             
             if not self.gemini_model:
@@ -181,7 +184,11 @@ JSON Response:"""
                 return None
                 
         except Exception as e:
-            logger.error(f"Error during classification: {e}")
+            logger.error(f"Error during classification for {drug_name} -> {target_name}: {e}")
+            logger.error(f"Error type: {type(e).__name__}")
+            if hasattr(e, 'response'):
+                logger.error(f"Response status: {getattr(e.response, 'status_code', 'N/A')}")
+                logger.error(f"Response text: {getattr(e.response, 'text', 'N/A')}")
             return None
 
     def store_classification_in_neo4j(self, drug_name: str, target_name: str, 
@@ -295,6 +302,20 @@ JSON Response:"""
             'source': classification.source,
             'timestamp': classification.timestamp
         }
+
+    def test_api_connection(self) -> bool:
+        """Test if the Gemini API is working"""
+        if not self.gemini_model:
+            logger.error("No Gemini model available for testing")
+            return False
+        
+        try:
+            response = self.gemini_model.generate_content("Test: respond with 'OK'")
+            logger.info(f"API test successful: {response.text}")
+            return True
+        except Exception as e:
+            logger.error(f"API test failed: {e}")
+            return False
 
     def batch_classify_drug_targets(self, drug_name: str, limit: int = 5) -> List[Dict]:
         """Classify multiple targets for a single drug"""

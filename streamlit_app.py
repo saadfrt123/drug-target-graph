@@ -4939,6 +4939,18 @@ def show_drug_search(app):
                         
 
                         if unclassified_targets:
+                            # Test API first
+                            col1, col2 = st.columns([3, 1])
+                            with col2:
+                                if st.button("🔧 Test API", help="Test if Gemini API is working"):
+                                    with st.spinner("Testing Gemini API..."):
+                                        if app.classifier.test_api_connection():
+                                            st.success("✅ API is working!")
+                                        else:
+                                            st.error("❌ API test failed - check logs")
+                            
+                            with col1:
+                                st.info(f"Found {len(unclassified_targets)} unclassified targets")
 
                             # Classify ALL targets automatically - no limit
 
