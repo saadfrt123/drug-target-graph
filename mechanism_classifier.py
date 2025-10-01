@@ -66,13 +66,18 @@ class DrugTargetMechanismClassifier:
                 pro_models = []
             
             # Try different model names in order of preference
-            # Prioritize Flash models for speed, then Pro models for quality
+            # Prioritize newest Flash models for speed
             model_names = [
-                'models/gemini-1.5-flash',
-                'models/gemini-1.5-flash-latest',
+                'models/gemini-2.0-flash-exp',
                 'models/gemini-2.0-flash',
-                'gemini-1.5-flash',
+                'models/gemini-1.5-flash-latest',
+                'models/gemini-1.5-flash-002',
+                'models/gemini-1.5-flash-8b',
+                'models/gemini-1.5-flash',
+                'gemini-2.0-flash-exp',
                 'gemini-2.0-flash',
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-flash',
             ]
             
             # Add detected flash models first, then pro models
