@@ -41,20 +41,47 @@ class DrugTargetMechanismClassifier:
         if gemini_api_key:
             genai.configure(api_key=gemini_api_key)
             
+            # List available models to see what's actually available
+            try:
+                available_models = []
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        available_models.append(m.name)
+                logger.info(f"Available Gemini models: {available_models}")
+            except Exception as e:
+                logger.warning(f"Could not list models: {e}")
+                available_models = []
+            
             # Try different model names in order of preference
-            model_names = ['gemini-pro', 'gemini-1.5-pro', 'gemini-1.0-pro']
+            # Updated model names for the current Gemini API
+            model_names = [
+                'models/gemini-1.5-flash',
+                'models/gemini-1.5-pro', 
+                'models/gemini-pro',
+                'gemini-1.5-flash',
+                'gemini-1.5-pro',
+                'gemini-pro'
+            ]
+            
+            # If we found available models, use those first
+            if available_models:
+                model_names = available_models + model_names
+            
             self.gemini_model = None
             
             for model_name in model_names:
                 try:
                     self.gemini_model = genai.GenerativeModel(model_name)
                     # Test the model with a simple query
-                    test_response = self.gemini_model.generate_content("Hello, respond with 'API working'")
+                    test_response = self.gemini_model.generate_content(
+                        "Hello, respond with 'API working'",
+                        generation_config={'temperature': 0.5}
+                    )
                     logger.info(f"Gemini API initialized and tested successfully with model: {model_name}")
                     logger.info(f"Test response: {test_response.text}")
                     break
                 except Exception as e:
-                    logger.warning(f"Failed to initialize or test model {model_name}: {e}")
+                    logger.warning(f"Failed to initialize or test model {model_name}: {str(e)[:200]}")
                     continue
             
             if not self.gemini_model:
