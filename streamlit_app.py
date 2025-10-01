@@ -4832,6 +4832,18 @@ def show_drug_search(app):
     
     search_term = st.text_input("Enter drug name or partial name:", value=default_value, help="You can search for full names or just part of a drug name")
 
+    # Clear session state if user is searching for a different drug
+    if search_term and search_term != st.session_state.get('last_search_term', ''):
+        # Clear previous search data when starting a new search
+        st.session_state.pop('search_results', None)
+        st.session_state.pop('selected_drug', None)
+        st.session_state.pop('last_search_term', None)
+        st.session_state.pop('search_example', None)  # Clear example too
+        # Clear any cached network data
+        keys_to_remove = [key for key in st.session_state.keys() if key.startswith('target_network_')]
+        for key in keys_to_remove:
+            st.session_state.pop(key, None)
+    
     # Store search term in session state for persistence across reruns
     if search_term:
         st.session_state['last_search_term'] = search_term
