@@ -44,28 +44,50 @@ class DrugTargetMechanismClassifier:
             # List available models to see what's actually available
             try:
                 available_models = []
+                flash_models = []
+                pro_models = []
+                
                 for m in genai.list_models():
                     if 'generateContent' in m.supported_generation_methods:
                         available_models.append(m.name)
+                        # Prioritize flash models (they're much faster)
+                        if 'flash' in m.name.lower():
+                            flash_models.append(m.name)
+                        else:
+                            pro_models.append(m.name)
+                
                 logger.info(f"Available Gemini models: {available_models}")
+                logger.info(f"Flash models (faster): {flash_models}")
+                logger.info(f"Pro models (slower): {pro_models}")
             except Exception as e:
                 logger.warning(f"Could not list models: {e}")
                 available_models = []
+                flash_models = []
+                pro_models = []
             
             # Try different model names in order of preference
-            # Updated model names for the current Gemini API
+            # Prioritize Flash models for speed, then Pro models for quality
             model_names = [
                 'models/gemini-1.5-flash',
-                'models/gemini-1.5-pro', 
-                'models/gemini-pro',
+                'models/gemini-1.5-flash-latest',
+                'models/gemini-2.0-flash',
                 'gemini-1.5-flash',
-                'gemini-1.5-pro',
-                'gemini-pro'
+                'gemini-2.0-flash',
             ]
             
-            # If we found available models, use those first
-            if available_models:
-                model_names = available_models + model_names
+            # Add detected flash models first, then pro models
+            if flash_models:
+                model_names = flash_models + model_names
+            if pro_models:
+                model_names = model_names + pro_models
+            
+            # Add fallback model names
+            model_names.extend([
+                'models/gemini-1.5-pro', 
+                'models/gemini-pro',
+                'gemini-1.5-pro',
+                'gemini-pro'
+            ])
             
             self.gemini_model = None
             
