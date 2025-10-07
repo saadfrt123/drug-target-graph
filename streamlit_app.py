@@ -7445,11 +7445,29 @@ def show_target_search(app):
                                                     try:
                                                         classification = app.get_drug_target_classification(drug['drug_name'], selected_target)
                                                         if classification:
-                                                            st.success(f"✅ Classified: {classification}")
+                                                            st.success(f"✅ Classified!")
+                                                            st.rerun()
                                                         else:
                                                             st.warning("⚠️ Classification failed")
                                                     except Exception as e:
                                                         st.error(f"❌ Error: {e}")
+                                    
+                                    # Show classification details if classified
+                                    if drug['is_classified']:
+                                        classification = app.get_cached_classification(drug['drug_name'], selected_target)
+                                        if classification:
+                                            st.markdown("---")
+                                            st.markdown("**🔬 Classification Details:**")
+                                            col_a, col_b = st.columns(2)
+                                            with col_a:
+                                                st.metric("🔗 Relationship", classification.get('relationship_type', 'Unknown'))
+                                                st.metric("⚙️ Mechanism", classification.get('mechanism', 'Unknown'))
+                                            with col_b:
+                                                st.metric("🧬 Target Class", classification.get('target_class', 'Unknown'))
+                                                st.metric("🎯 Confidence", f"{classification.get('confidence', 0):.0%}")
+                                            if classification.get('reasoning'):
+                                                with st.expander("📝 View Scientific Reasoning"):
+                                                    st.write(classification['reasoning'])
                                     
                                     # MOA information
                                     moa = drug['drug_moa'] or 'Not specified'
@@ -9241,17 +9259,24 @@ def show_mechanism_classification(app):
 
         st.subheader("🎯 Classify Individual Drug-Target Relationship")
 
-        
+        st.info("""
+        **📝 How to use this form:**
+        - **Drug Name:** Enter the drug's name (e.g., aspirin, imatinib, metformin)
+        - **Target Name:** Enter a **protein/gene symbol** (e.g., PTGS1, ABL1, KIT)
+        - **Not sure what targets a drug has?** Use the Drug Search page first!
+        """)
 
         col1, col2 = st.columns(2)
 
         with col1:
 
-            drug_name = st.text_input("Drug Name:", placeholder="e.g., Aspirin")
+            drug_name = st.text_input("Drug Name:", placeholder="e.g., aspirin, imatinib",
+                                     help="Enter the drug name (not the MOA)")
 
         with col2:
 
-            target_name = st.text_input("Target Name:", placeholder="e.g., PTGS1")
+            target_name = st.text_input("Target Name:", placeholder="e.g., PTGS1, ABL1, EGFR",
+                                       help="Enter a protein/gene symbol (e.g., PTGS1, not 'leukotriene inhibitor')")
 
         
 
