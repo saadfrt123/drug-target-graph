@@ -7470,8 +7470,8 @@ def show_target_search(app):
                                                 st.metric("🧬 Target Class", classification.get('target_class', 'Unknown'))
                                                 st.metric("🎯 Confidence", f"{classification.get('confidence', 0):.0%}")
                                             if classification.get('reasoning'):
-                                                with st.expander("📝 View Scientific Reasoning"):
-                                                    st.write(classification['reasoning'])
+                                                st.markdown("**📝 Scientific Reasoning:**")
+                                                st.info(classification['reasoning'])
                                     
                                     # MOA information
                                     moa = drug['drug_moa'] or 'Not specified'
