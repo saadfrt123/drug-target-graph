@@ -7454,7 +7454,11 @@ def show_target_search(app):
                                     
                                     # Show classification details if classified
                                     if drug['is_classified']:
+                                        # Try cache first, then database
                                         classification = app.get_cached_classification(drug['drug_name'], selected_target)
+                                        if not classification and app.classifier:
+                                            classification = app.classifier.get_existing_classification(drug['drug_name'], selected_target)
+                                        
                                         if classification:
                                             st.markdown("---")
                                             st.markdown("**🔬 Classification Details:**")
