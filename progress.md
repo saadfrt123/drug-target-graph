@@ -424,6 +424,244 @@ drug-target-graph/
 **Last Updated:** October 16, 2025  
 **Status:** ✅ PRODUCTION READY  
 **Total Lines of Code:** ~25,000+  
-**Documentation Files:** 20+  
+**Documentation Files:** 25+  
 **Neo4j Queries:** 22 documented  
+**API Endpoints:** 4-5 (simplified design)  
 **Tests:** All manual tests passed
+
+---
+
+## 🚀 FastAPI Endpoints Planning & Documentation (October 16, 2025 - Current):
+
+**User Request:** Setup FastAPI endpoints with wrappers, document all endpoints, create folder structure
+
+**Analysis Completed:**
+- ✅ Analyzed all methods in `DrugTargetGraphApp` class
+- ✅ Identified 35+ potential API endpoints
+- ✅ Organized endpoints into 9 logical categories
+- ✅ Mapped Streamlit methods to REST endpoints
+- ✅ Designed request/response models
+- ✅ Planned authentication and rate limiting
+
+**Documentation Created:**
+
+**1. API_ENDPOINTS_DOCUMENTATION.md** (Comprehensive):
+- ✅ Complete endpoint documentation (35+ endpoints)
+- ✅ Request/response examples for each endpoint
+- ✅ Error handling and status codes
+- ✅ Authentication requirements
+- ✅ Rate limiting specifications
+- ✅ Usage examples (Python, cURL)
+- ✅ Endpoint summary table
+
+**2. IMPLEMENTATION_PLAN.md**:
+- ✅ Folder structure design
+- ✅ Implementation details
+- ✅ Code structure examples
+- ✅ Endpoint mapping (Streamlit → API)
+- ✅ Implementation phases
+
+**3. MODULE_STRUCTURE.md**:
+- ✅ Module organization
+- ✅ Integration with existing code
+- ✅ Authentication approach
+- ✅ Testing strategy
+- ✅ Deployment recommendations
+
+**4. README.md**:
+- ✅ Quick start guide
+- ✅ API overview
+- ✅ Example usage
+- ✅ Testing instructions
+
+**5. requirements.txt**:
+- ✅ FastAPI dependencies
+- ✅ Testing dependencies
+- ✅ All required packages listed
+
+**Folder Structure Created:**
+```
+api_endpoints/
+├── API_ENDPOINTS_DOCUMENTATION.md
+├── IMPLEMENTATION_PLAN.md
+├── MODULE_STRUCTURE.md
+├── README.md
+├── requirements.txt
+└── [Implementation files to be created]
+```
+
+**Endpoint Categories Identified:**
+
+1. **Health & Status** (3 endpoints)
+   - Health check, database status, AI service status
+
+2. **Drug Endpoints** (8 endpoints)
+   - Search, details, network, targets, similar drugs, top drugs, MOA search, pathways
+
+3. **Target Endpoints** (5 endpoints)
+   - Search, details, network, drugs, top targets
+
+4. **Network Visualization** (3 endpoints)
+   - Drug network, target network, 3D network
+
+5. **Statistics** (5 endpoints)
+   - Database stats, graph stats, phase stats, MOA stats, classification stats
+
+6. **AI Classification** (3 endpoints)
+   - Classify, get classification, batch classify
+
+7. **AI Cascade Prediction** (2 endpoints)
+   - Predict cascade, get cascade predictions
+
+8. **Repurposing** (3 endpoints)
+   - Candidates, insights, common targets
+
+9. **Analysis** (3 endpoints)
+   - Similarity analysis, therapeutic class, drug comparison
+
+**Total Endpoints:** 35+
+
+**Key Design Decisions:**
+
+1. **Wrapper Architecture** - API wraps existing Streamlit app methods (no code changes needed)
+2. **RESTful Design** - Standard HTTP methods and status codes
+3. **Pydantic Models** - Request/response validation
+4. **API Key Auth** - Simple API key authentication
+5. **Rate Limiting** - Different limits for different endpoint types
+6. **Error Handling** - Standardized error responses
+7. **OpenAPI Docs** - Auto-generated Swagger/ReDoc documentation
+
+**Integration Approach:**
+- ✅ No changes to existing Streamlit app required
+- ✅ Wraps `DrugTargetGraphApp` class methods
+- ✅ Uses existing `mechanism_classifier.py` and `cascade_predictor.py`
+- ✅ Same Neo4j connection pool
+- ✅ Same caching mechanisms
+
+**Status:** ✅ DOCUMENTATION COMPLETE - Ready for Implementation
+
+**Next Steps:**
+1. Create FastAPI application structure
+2. Implement database service wrapper
+3. Implement all routers
+4. Add authentication and rate limiting
+5. Add tests
+6. Deploy API server
+
+**Files Created:**
+- `api_endpoints/API_ENDPOINTS_DOCUMENTATION.md` - Complete endpoint docs (1000+ lines)
+- `api_endpoints/IMPLEMENTATION_PLAN.md` - Implementation guide
+- `api_endpoints/MODULE_STRUCTURE.md` - Module organization
+- `api_endpoints/README.md` - Quick start guide
+- `api_endpoints/requirements.txt` - Dependencies
+- `progress.md` (this update)
+
+**Status:** ✅ PLANNING COMPLETE - Ready for FastAPI implementation
+
+---
+
+## 🔄 FastAPI Design Simplification (October 16, 2025 - Updated):
+
+**User Request:** Simplify API design - backend queries Neo4j directly, API only for AI operations
+
+**Architecture Change:**
+- ✅ **Backend queries Neo4j directly** for all drug/target/network data
+- ✅ **API endpoints called conditionally** - only when AI classification/prediction needed
+- ✅ **Reduced from 35+ endpoints to 4-5 endpoints**
+
+**New Flow:**
+```
+Backend → Query Neo4j → Check if classification exists → If NO → Call AI endpoint
+Backend → Query Neo4j → Check if cascade exists → If NO → Call AI endpoint
+```
+
+**Simplified Endpoints:**
+
+1. **Health Check** (Optional)
+   - `GET /health` - API health status
+
+2. **AI Classification** (Required)
+   - `POST /classification/classify` - Single drug-target classification
+   - `POST /classification/batch` - Batch classification
+
+3. **AI Cascade Prediction** (Required)
+   - `POST /cascade/predict` - Predict cascade effects
+
+4. **Utility** (Optional)
+   - `GET /classification/status/{drug}/{target}` - Check status
+
+**Total:** 4-5 endpoints (vs 35+ original)
+
+**How Backend Checks:**
+
+**Classification Check:**
+```cypher
+MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target {name: $target_name})
+RETURN r.classified as is_classified
+```
+- If `is_classified IS NULL OR is_classified = false` → Call API
+- If `is_classified = true` → Use existing data (no API call)
+
+**Cascade Check:**
+```cypher
+MATCH (t:Target {name: $target_name})-[r:AFFECTS_DOWNSTREAM]->(e)
+WHERE r.drug_context = $drug_name AND r.predicted_by = "Gemini_API"
+RETURN count(r) as cascade_count
+```
+- If `cascade_count = 0` → Call API
+- If `cascade_count > 0` → Use existing data (no API call)
+
+**Updated Documentation:**
+- ✅ `SIMPLIFIED_DESIGN.md` - Complete simplified design
+- ✅ Updated `API_ENDPOINTS_DOCUMENTATION.md` - Added note about simplification
+- ✅ Architecture flow documented
+- ✅ Backend integration examples provided
+
+**Key Benefits:**
+1. Minimal API surface - only AI operations
+2. Backend controls flow - queries Neo4j directly
+3. On-demand AI - only called when needed
+4. Simple integration - check Neo4j, call API if needed
+5. Efficient - no redundant data fetching
+
+**Updated Documentation Files:**
+- ✅ `SIMPLIFIED_DESIGN.md` - Complete architecture and design
+- ✅ `BACKEND_INTEGRATION_GUIDE.md` - Backend developer guide with Neo4j queries
+- ✅ `SUMMARY.md` - Complete walkthrough and summary
+- ✅ Updated `API_ENDPOINTS_DOCUMENTATION.md` - Added simplification notice
+- ✅ Updated `README.md` - Updated with simplified architecture
+- ✅ `progress.md` (this update)
+
+**Key Neo4j Queries Documented:**
+
+**Classification Check:**
+```cypher
+MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target {name: $target_name})
+RETURN r.classified as is_classified
+```
+
+**Cascade Check:**
+```cypher
+MATCH (t:Target {name: $target_name})-[r:AFFECTS_DOWNSTREAM]->(e)
+WHERE r.drug_context = $drug_name AND r.predicted_by = "Gemini_API"
+RETURN count(r) as cascade_count
+```
+
+**Get Unclassified Targets:**
+```cypher
+MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target)
+WHERE r.classified IS NULL OR r.classified = false
+RETURN t.name as target_name
+LIMIT $limit
+```
+
+**Status:** ✅ DESIGN SIMPLIFIED - Ready for Implementation
+
+**Next Steps:**
+1. Implement 4-5 simplified endpoints
+2. Add Neo4j integration (store results automatically)
+3. Add authentication and rate limiting
+4. Provide backend team with Neo4j query examples (DONE ✅)
+5. Document complete integration flow (DONE ✅)
+6. Implement FastAPI endpoints
+7. Backend integration with conditional API calls
