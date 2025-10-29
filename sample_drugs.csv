@@ -1,0 +1,4 @@
+drug_name,moa,phase,targets,disease_area,vendor
+aspirin,cyclooxygenase inhibitor,Approved,PTGS1|PTGS2,Pain Management,Selleck Chemicals
+ibuprofen,NSAID,Approved,PTGS1|PTGS2,Pain Management,Tocris
+acetaminophen,COX inhibitor,Approved,PTGS2,Pain Management,Sigma-Aldrich

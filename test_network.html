@@ -1,0 +1,341 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Drug-Target Network - aspirin</title>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+        }
+        #network_47ed7aa0 {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            background: white;
+        }
+        .controls {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f6f8fa;
+            border-radius: 6px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #0366d6;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover {
+            background: #0256c7;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .node-info {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #0366d6;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #3498db;"></div>
+            <span>Central Drug</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #e74c3c;"></div>
+            <span>Target</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #2ecc71;"></div>
+            <span>Other Drug</span>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="stabilizeNetwork()">🎯 Stabilize Layout</button>
+        <button onclick="reloadNetwork()">🔄 Reload</button>
+        <button onclick="clearNetwork()">🗑️ Clear</button>
+        <button onclick="resetView()">↩️ Reset View</button>
+    </div>
+    
+    <div id="network_47ed7aa0"></div>
+    
+    <div id="node-info" class="node-info" style="display:none;">
+        <h3 id="node-title"></h3>
+        <div id="node-details"></div>
+    </div>
+
+    <script type="text/javascript">
+        // Network data
+        var nodesData = [{"id": 0, "label": "aspirin", "group": "central_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 1, "label": "AKR1C1", "group": "target"}, {"id": 2, "label": "coenzyme-I", "group": "other_drug", "moa": "Unknown", "phase": "Phase 2"}, {"id": 3, "label": "hexestrol", "group": "other_drug", "moa": "synthetic estrogen", "phase": "Launched"}, {"id": 4, "label": "salicylic-acid", "group": "other_drug", "moa": "cyclooxygenase inhibitor, prostanoid receptor antagonist", "phase": "Launched"}, {"id": 5, "label": "ASIC3", "group": "target"}, {"id": 6, "label": "agmatine", "group": "other_drug", "moa": "nitric oxide synthase inhibitor", "phase": "Phase 3"}, {"id": 7, "label": "amiloride", "group": "other_drug", "moa": "sodium channel blocker", "phase": "Launched"}, {"id": 8, "label": "diclofenac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 9, "label": "nafamostat", "group": "other_drug", "moa": "serine protease inhibitor", "phase": "Launched"}, {"id": 10, "label": "EDNRA", "group": "target"}, {"id": 11, "label": "ACT-132577", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Launched"}, {"id": 12, "label": "BMS-182874", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 2"}, {"id": 13, "label": "BQ-123", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 2"}, {"id": 14, "label": "FR-139317", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 1"}, {"id": 15, "label": "PD-156707", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Preclinical"}, {"id": 16, "label": "SPP301", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 3"}, {"id": 17, "label": "ambrisentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Launched"}, {"id": 18, "label": "atrasentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 3"}, {"id": 19, "label": "bosentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Launched"}, {"id": 20, "label": "darusentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 3"}, {"id": 21, "label": "macitentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Launched"}, {"id": 22, "label": "sitaxentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Withdrawn"}, {"id": 23, "label": "zibotentan", "group": "other_drug", "moa": "endothelin receptor antagonist", "phase": "Phase 3"}, {"id": 24, "label": "HSPA5", "group": "target"}, {"id": 25, "label": "IKBKB", "group": "target"}, {"id": 26, "label": "AZD3264", "group": "other_drug", "moa": "IKK inhibitor", "phase": "Preclinical"}, {"id": 27, "label": "BMS-345541", "group": "other_drug", "moa": "IKK inhibitor", "phase": "Preclinical"}, {"id": 28, "label": "IKK-16", "group": "other_drug", "moa": "IKK inhibitor", "phase": "Preclinical"}, {"id": 29, "label": "IKK-2-inhibitor", "group": "other_drug", "moa": "IKK inhibitor, SYK inhibitor", "phase": "Preclinical"}, {"id": 30, "label": "IKK-2-inhibitor-V", "group": "other_drug", "moa": "IKK inhibitor, NFkB pathway inhibitor", "phase": "Phase 1"}, {"id": 31, "label": "PF-573228", "group": "other_drug", "moa": "focal adhesion kinase inhibitor", "phase": "Preclinical"}, {"id": 32, "label": "TPCA-1", "group": "other_drug", "moa": "IKK inhibitor", "phase": "Preclinical"}, {"id": 33, "label": "acetylcysteine", "group": "other_drug", "moa": "mucolytic agent", "phase": "Launched"}, {"id": 34, "label": "arsenic-trioxide", "group": "other_drug", "moa": "apoptosis stimulant", "phase": "Launched"}, {"id": 35, "label": "auranofin", "group": "other_drug", "moa": "NFkB pathway inhibitor", "phase": "Launched"}, {"id": 36, "label": "hypoestoxide", "group": "other_drug", "moa": "IKK inhibitor", "phase": "Phase 1"}, {"id": 37, "label": "mesalazine", "group": "other_drug", "moa": "cyclooxygenase inhibitor, lipoxygenase inhibitor, prostanoid receptor antagonist", "phase": "Launched"}, {"id": 38, "label": "parthenolide-(alternate-stereo)", "group": "other_drug", "moa": "NFkB pathway inhibitor", "phase": "Preclinical"}, {"id": 39, "label": "sulfasalazine", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 40, "label": "NFKB1", "group": "target"}, {"id": 41, "label": "SP-100030", "group": "other_drug", "moa": "NFkB pathway inhibitor", "phase": "Preclinical"}, {"id": 42, "label": "andrographolide", "group": "other_drug", "moa": "tumor necrosis factor production inhibitor", "phase": "Phase 2"}, {"id": 43, "label": "arglabin", "group": "other_drug", "moa": "farnesyltransferase inhibitor", "phase": "Launched"}, {"id": 44, "label": "pranlukast", "group": "other_drug", "moa": "leukotriene receptor antagonist", "phase": "Launched"}, {"id": 45, "label": "triflusal", "group": "other_drug", "moa": "cyclooxygenase inhibitor, platelet aggregation inhibitor, thromboxane synthase inhibitor", "phase": "Launched"}, {"id": 46, "label": "NFKB2", "group": "target"}, {"id": 47, "label": "NFKBIA", "group": "target"}, {"id": 48, "label": "BAY-11-7085", "group": "other_drug", "moa": "NFkB pathway inhibitor", "phase": "Preclinical"}, {"id": 49, "label": "GS-143", "group": "other_drug", "moa": "ubiquitin ligase inhibitor", "phase": "Preclinical"}, {"id": 50, "label": "PRKAA1", "group": "target"}, {"id": 51, "label": "ZLN024", "group": "other_drug", "moa": "AMPK activator", "phase": "Preclinical"}, {"id": 52, "label": "adenosine-phosphate", "group": "other_drug", "moa": "adenosine receptor agonist", "phase": "Launched"}, {"id": 53, "label": "adenosine-triphosphate", "group": "other_drug", "moa": "adenosine receptor agonist", "phase": "Phase 2"}, {"id": 54, "label": "dorsomorphin", "group": "other_drug", "moa": "AMPK inhibitor", "phase": "Preclinical"}, {"id": 55, "label": "phenformin", "group": "other_drug", "moa": "AMPK activator", "phase": "Withdrawn"}, {"id": 56, "label": "PRKAA2", "group": "target"}, {"id": 57, "label": "PRKAB1", "group": "target"}, {"id": 58, "label": "metformin", "group": "other_drug", "moa": "insulin sensitizer", "phase": "Launched"}, {"id": 59, "label": "PRKAB2", "group": "target"}, {"id": 60, "label": "PRKAG1", "group": "target"}, {"id": 61, "label": "PRKAG2", "group": "target"}, {"id": 62, "label": "PRKAG3", "group": "target"}, {"id": 63, "label": "PTGS1", "group": "target"}, {"id": 64, "label": "O-acetyl-L-serine", "group": "other_drug", "moa": "Unknown", "phase": "Preclinical"}, {"id": 65, "label": "SC-560", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Preclinical"}, {"id": 66, "label": "acemetacin", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 67, "label": "alclofenac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 68, "label": "amfenac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 69, "label": "aminosalicylate", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 70, "label": "ampiroxicam", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 71, "label": "amtolmetin-guacil", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 72, "label": "arachidonic-acid", "group": "other_drug", "moa": "cytochrome P450 inhibitor", "phase": "Phase 1"}, {"id": 73, "label": "balsalazide", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 74, "label": "bendazac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 75, "label": "bromfenac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Withdrawn"}, {"id": 76, "label": "cianidanol", "group": "other_drug", "moa": "fatty acid synthase inhibitor", "phase": "Withdrawn"}, {"id": 77, "label": "cicloprofen", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Preclinical"}, {"id": 78, "label": "clonixin", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Preclinical"}, {"id": 79, "label": "curcumin", "group": "other_drug", "moa": "cyclooxygenase inhibitor, histone acetyltransferase inhibitor, lipoxygenase inhibitor, NFkB pathway inhibitor", "phase": "Launched"}, {"id": 80, "label": "diethylcarbamazine", "group": "other_drug", "moa": "lipoxygenase inhibitor", "phase": "Launched"}, {"id": 81, "label": "diflunisal", "group": "other_drug", "moa": "prostanoid receptor antagonist", "phase": "Launched"}, {"id": 82, "label": "dihomo-gamma-linolenic-acid", "group": "other_drug", "moa": "prostanoid receptor agonist", "phase": "Phase 2"}, {"id": 83, "label": "doconexent", "group": "other_drug", "moa": "PPAR receptor agonist", "phase": "Launched"}, {"id": 84, "label": "droxicam", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 85, "label": "epirizole", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 86, "label": "etofenamate", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 87, "label": "felbinac-ethyl", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 88, "label": "fenbufen", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 89, "label": "fenoprofen", "group": "other_drug", "moa": "prostaglandin inhibitor", "phase": "Launched"}, {"id": 90, "label": "fentiazac", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 91, "label": "floctafenine", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 92, "label": "flufenamic-acid", "group": "other_drug", "moa": "chloride channel blocker", "phase": "Preclinical"}, {"id": 93, "label": "flurbiprofen-(S)-(+)", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 94, "label": "flurizan", "group": "other_drug", "moa": "gamma secretase inhibitor", "phase": "Phase 3"}, {"id": 95, "label": "fosfosal", "group": "other_drug", "moa": "phosphodiesterase inhibitor", "phase": "Launched"}, {"id": 96, "label": "gamma-linolenic-acid", "group": "other_drug", "moa": "cyclooxygenase inhibitor, prostanoid receptor agonist", "phase": "Phase 2"}, {"id": 97, "label": "honokiol", "group": "other_drug", "moa": "AKT inhibitor", "phase": "Phase 3"}, {"id": 98, "label": "ibuprofen-(S)", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 99, "label": "ibuprofen-piconol", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 100, "label": "icosapent", "group": "other_drug", "moa": "platelet aggregation inhibitor", "phase": "Launched"}, {"id": 101, "label": "ifosfamide", "group": "other_drug", "moa": "DNA alkylating agent", "phase": "Launched"}, {"id": 102, "label": "indobufen", "group": "other_drug", "moa": "cyclooxygenase inhibitor, platelet aggregation inhibitor", "phase": "Launched"}, {"id": 103, "label": "indomethacin", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Launched"}, {"id": 104, "label": "indoprofen", "group": "other_drug", "moa": "cyclooxygenase inhibitor, prostanoid receptor antagonist", "phase": "Withdrawn"}, {"id": 105, "label": "isoxicam", "group": "other_drug", "moa": "cyclooxygenase inhibitor", "phase": "Withdrawn"}];
+        var edgesData = [{"from": 0, "to": 1, "label": "targets"}, {"from": 2, "to": 1, "label": "targets"}, {"from": 0, "to": 1, "label": "targets"}, {"from": 3, "to": 1, "label": "targets"}, {"from": 0, "to": 1, "label": "targets"}, {"from": 4, "to": 1, "label": "targets"}, {"from": 0, "to": 5, "label": "targets"}, {"from": 6, "to": 5, "label": "targets"}, {"from": 0, "to": 5, "label": "targets"}, {"from": 7, "to": 5, "label": "targets"}, {"from": 0, "to": 5, "label": "targets"}, {"from": 8, "to": 5, "label": "targets"}, {"from": 0, "to": 5, "label": "targets"}, {"from": 9, "to": 5, "label": "targets"}, {"from": 0, "to": 5, "label": "targets"}, {"from": 4, "to": 5, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 11, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 12, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 13, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 14, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 15, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 16, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 17, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 18, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 19, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 20, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 21, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 22, "to": 10, "label": "targets"}, {"from": 0, "to": 10, "label": "targets"}, {"from": 23, "to": 10, "label": "targets"}, {"from": 0, "to": 24, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 26, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 27, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 28, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 29, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 30, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 31, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 32, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 33, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 34, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 35, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 36, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 37, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 38, "to": 25, "label": "targets"}, {"from": 0, "to": 25, "label": "targets"}, {"from": 39, "to": 25, "label": "targets"}, {"from": 0, "to": 40, "label": "targets"}, {"from": 41, "to": 40, "label": "targets"}, {"from": 0, "to": 40, "label": "targets"}, {"from": 42, "to": 40, "label": "targets"}, {"from": 0, "to": 40, "label": "targets"}, {"from": 43, "to": 40, "label": "targets"}, {"from": 0, "to": 40, "label": "targets"}, {"from": 44, "to": 40, "label": "targets"}, {"from": 0, "to": 40, "label": "targets"}, {"from": 45, "to": 40, "label": "targets"}, {"from": 0, "to": 46, "label": "targets"}, {"from": 42, "to": 46, "label": "targets"}, {"from": 0, "to": 47, "label": "targets"}, {"from": 48, "to": 47, "label": "targets"}, {"from": 0, "to": 47, "label": "targets"}, {"from": 49, "to": 47, "label": "targets"}, {"from": 0, "to": 50, "label": "targets"}, {"from": 51, "to": 50, "label": "targets"}, {"from": 0, "to": 50, "label": "targets"}, {"from": 52, "to": 50, "label": "targets"}, {"from": 0, "to": 50, "label": "targets"}, {"from": 53, "to": 50, "label": "targets"}, {"from": 0, "to": 50, "label": "targets"}, {"from": 54, "to": 50, "label": "targets"}, {"from": 0, "to": 50, "label": "targets"}, {"from": 55, "to": 50, "label": "targets"}, {"from": 0, "to": 56, "label": "targets"}, {"from": 0, "to": 57, "label": "targets"}, {"from": 51, "to": 57, "label": "targets"}, {"from": 0, "to": 57, "label": "targets"}, {"from": 52, "to": 57, "label": "targets"}, {"from": 0, "to": 57, "label": "targets"}, {"from": 58, "to": 57, "label": "targets"}, {"from": 0, "to": 59, "label": "targets"}, {"from": 52, "to": 59, "label": "targets"}, {"from": 0, "to": 60, "label": "targets"}, {"from": 51, "to": 60, "label": "targets"}, {"from": 0, "to": 61, "label": "targets"}, {"from": 0, "to": 62, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 64, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 65, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 66, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 67, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 68, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 69, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 70, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 71, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 72, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 73, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 74, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 75, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 76, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 77, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 78, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 79, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 8, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 80, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 81, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 82, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 83, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 84, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 85, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 86, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 87, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 88, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 89, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 90, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 91, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 92, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 93, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 94, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 95, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 96, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 97, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 98, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 99, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 100, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 101, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 102, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 103, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 104, "to": 63, "label": "targets"}, {"from": 0, "to": 63, "label": "targets"}, {"from": 105, "to": 63, "label": "targets"}];
+        
+        // Create datasets
+        var nodes = new vis.DataSet(nodesData);
+        var edges = new vis.DataSet(edgesData);
+        
+        // Network options
+        var options = {
+            nodes: {
+                shape: 'dot',
+                font: {
+                    size: 14,
+                    face: 'Segoe UI',
+                    color: '#333'
+                },
+                borderWidth: 2,
+                shadow: true
+            },
+            edges: {
+                arrows: {
+                    to: { enabled: true, scaleFactor: 0.5 }
+                },
+                smooth: {
+                    enabled: true,
+                    type: 'continuous'
+                },
+                font: {
+                    size: 11,
+                    align: 'top'
+                },
+                color: {
+                    color: '#848484',
+                    highlight: '#FF6B6B',
+                    hover: '#FF6B6B'
+                }
+            },
+            physics: {
+                enabled: true,
+                stabilization: {
+                    iterations: 200,
+                    fit: true
+                },
+                barnesHut: {
+                    gravitationalConstant: -8000,
+                    springLength: 150,
+                    springConstant: 0.04,
+                    damping: 0.09
+                }
+            },
+            groups: {
+                central_drug: {
+                    color: {background: '#3498db', border: '#2980b9'},
+                    size: 25,
+                    font: {size: 16, color: 'white', bold: true}
+                },
+                target: {
+                    color: {background: '#e74c3c', border: '#c0392b'},
+                    size: 20,
+                    font: {size: 14, color: 'white'}
+                },
+                other_drug: {
+                    color: {background: '#2ecc71', border: '#27ae60'},
+                    size: 15,
+                    font: {size: 12, color: 'white'}
+                }
+            }
+        };
+        
+        // Create network
+        var container = document.getElementById('network_47ed7aa0');
+        var network = new vis.Network(container, {nodes: nodes, edges: edges}, options);
+        
+        // Event listeners
+        network.on("selectNode", function(params) {
+            var nodeId = params.nodes[0];
+            var nodeData = nodes.get(nodeId);
+            showNodeInfo(nodeData);
+            
+            // Recenter on clicked node
+            network.focus(nodeId, {
+                scale: 1.2,
+                animation: {
+                    duration: 1000,
+                    easingFunction: "easeInOutQuad"
+                }
+            });
+        });
+        
+        network.on("hoverNode", function(params) {
+            var nodeId = params.node;
+            var nodeData = nodes.get(nodeId);
+            showTooltip(event, nodeData);
+        });
+        
+        network.on("blurNode", function(params) {
+            hideTooltip();
+        });
+        
+        // Right-click context menu
+        container.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+            
+            var pos = {
+                x: event.clientX,
+                y: event.clientY
+            };
+            
+            var clickedNode = network.getNodeAt(pos);
+            if (clickedNode) {
+                var nodeData = nodes.get(clickedNode);
+                if (nodeData.group === 'target') {
+                    showCascadeContextMenu(event, nodeData);
+                }
+            }
+        });
+        
+        function showNodeInfo(nodeData) {
+            document.getElementById('node-info').style.display = 'block';
+            document.getElementById('node-title').textContent = nodeData.label || 'Unknown Node';
+            
+            var details = '<p><strong>Type:</strong> ' + (nodeData.group || 'Unknown') + '</p>';
+            if (nodeData.moa) {
+                details += '<p><strong>MOA:</strong> ' + nodeData.moa + '</p>';
+            }
+            if (nodeData.phase) {
+                details += '<p><strong>Phase:</strong> ' + nodeData.phase + '</p>';
+            }
+            
+            document.getElementById('node-details').innerHTML = details;
+        }
+        
+        function showTooltip(event, nodeData) {
+            var tooltip = document.getElementById('tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'tooltip';
+                tooltip.className = 'tooltip';
+                document.body.appendChild(tooltip);
+            }
+            
+            var content = '<strong>' + nodeData.label + '</strong><br/>';
+            content += 'Type: ' + (nodeData.group || 'Unknown') + '<br/>';
+            if (nodeData.moa) content += 'MOA: ' + nodeData.moa + '<br/>';
+            if (nodeData.phase) content += 'Phase: ' + nodeData.phase;
+            
+            tooltip.innerHTML = content;
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 10) + 'px';
+            tooltip.style.display = 'block';
+        }
+        
+        function hideTooltip() {
+            var tooltip = document.getElementById('tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+        
+        function showCascadeContextMenu(event, nodeData) {
+            var menu = document.createElement('div');
+            menu.style.cssText = `
+                position: fixed;
+                background: white;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 1000;
+                padding: 8px 0;
+            `;
+            
+            var showCascadeItem = document.createElement('div');
+            showCascadeItem.textContent = 'Show Cascade Effects';
+            showCascadeItem.style.cssText = `
+                padding: 8px 16px;
+                cursor: pointer;
+                font-size: 14px;
+            `;
+            showCascadeItem.addEventListener('mouseenter', function() {
+                this.style.background = '#f0f0f0';
+            });
+            showCascadeItem.addEventListener('mouseleave', function() {
+                this.style.background = 'white';
+            });
+            showCascadeItem.addEventListener('click', function() {
+                showCascadeEffects(nodeData.id, nodeData.label);
+                document.body.removeChild(menu);
+            });
+            
+            menu.appendChild(showCascadeItem);
+            menu.style.left = event.clientX + 'px';
+            menu.style.top = event.clientY + 'px';
+            
+            document.body.appendChild(menu);
+            
+            setTimeout(function() {
+                document.addEventListener('click', function removeMenu() {
+                    if (document.body.contains(menu)) {
+                        document.body.removeChild(menu);
+                    }
+                    document.removeEventListener('click', removeMenu);
+                });
+            }, 100);
+        }
+        
+        function showCascadeEffects(targetId, targetName) {
+            alert('Cascade effects for ' + targetName + ' will be loaded from Neo4j\n\nThis will:\\n1. Query Neo4j for AFFECTS_DOWNSTREAM relationships\\n2. Add new nodes and edges to the network\\n3. Update visualization');
+        }
+        
+        // Control functions
+        function stabilizeNetwork() {
+            network.stabilize();
+        }
+        
+        function reloadNetwork() {
+            location.reload();
+        }
+        
+        function clearNetwork() {
+            nodes.clear();
+            edges.clear();
+        }
+        
+        function resetView() {
+            network.fit();
+        }
+    </script>
+</body>
+</html>
+    

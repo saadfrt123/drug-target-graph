@@ -1,0 +1,18 @@
+[
+  {
+    "compound_name": "metformin",
+    "mechanism_of_action": "AMPK activator",
+    "clinical_stage": "Approved",
+    "biological_targets": "AMPK,GLUT4",
+    "therapeutic_area": "Diabetes",
+    "supplier": "MedChem Express"
+  },
+  {
+    "compound_name": "warfarin",
+    "mechanism_of_action": "Vitamin K antagonist",
+    "clinical_stage": "Approved",
+    "biological_targets": "VKORC1,CYP2C9",
+    "therapeutic_area": "Cardiovascular",
+    "supplier": "Cayman Chemical"
+  }
+]

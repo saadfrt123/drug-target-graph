@@ -1,0 +1,478 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Drug-Target Cascade Network</title>
+    <script src="https://unpkg.com/neovis.js@2.1.0"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        #viz_01cbcd0f {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .info-panel {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e1e4e8;
+            font-size: 14px;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 10px 0;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .controls {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f6f8fa;
+            border-radius: 6px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background: #0366d6;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button:hover {
+            background: #0256c7;
+        }
+        .node-info {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border-left: 4px solid #0366d6;
+        }
+        .confidence-high { color: #28a745; font-weight: bold; }
+        .confidence-med { color: #ffc107; font-weight: bold; }
+        .confidence-low { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="legend">
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #3498db;"></div>
+            <span>Drug</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #2ecc71;"></div>
+            <span>Target</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #f39c12;"></div>
+            <span>Pathway</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #e74c3c;"></div>
+            <span>Metabolite</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #9b59b6;"></div>
+            <span>Gene</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-circle" style="background: #e67e22;"></div>
+            <span>Process</span>
+        </div>
+    </div>
+    
+    <div id="viz_01cbcd0f"></div>
+    
+    <div class="controls">
+        <button onclick="viz.stabilize()">🎯 Stabilize Layout</button>
+        <button onclick="viz.reload()">🔄 Reload</button>
+        <button onclick="viz.clearNetwork()">🗑️ Clear</button>
+        <button onclick="viz.renderWithCypher(viz.config.initial_cypher)">↩️ Reset View</button>
+    </div>
+    
+    <div id="node-info" class="node-info" style="display:none;">
+        <h3 id="node-title"></h3>
+        <div id="node-details"></div>
+    </div>
+
+    <script type="text/javascript">
+        // Neovis configuration
+        var config = {
+            containerId: "viz_01cbcd0f",
+            neo4j: {
+                serverUrl: "neo4j+s://c8287756.databases.neo4j.io",
+                serverUser: "neo4j",
+                serverPassword: "bsSvDn8Kh-qVZrtwwAH2t3yhLf0pGjDKzCL8Bs5jqkM",
+                serverDatabase: "neo4j"
+            },
+            visConfig: {
+                nodes: {
+                    shape: 'dot',
+                    font: {
+                        size: 14,
+                        face: 'Segoe UI',
+                        color: '#333'
+                    }
+                },
+                edges: {
+                    arrows: {
+                        to: { enabled: true, scaleFactor: 0.5 }
+                    },
+                    smooth: {
+                        enabled: true,
+                        type: 'continuous'
+                    },
+                    font: {
+                        size: 11,
+                        align: 'top'
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        iterations: 200,
+                        fit: true
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -8000,
+                        springLength: 150,
+                        springConstant: 0.04,
+                        damping: 0.09
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true,
+                    navigationButtons: true,
+                    keyboard: true
+                },
+                layout: {
+                    hierarchical: {
+                        enabled: true,
+                        direction: 'LR',
+                        sortMethod: 'directed',
+                        levelSeparation: 200,
+                        nodeSpacing: 150
+                    }
+                }
+            },
+            labels: {
+                Drug: {
+                    label: "name",
+                    size: 30,
+                    color: "#3498db",
+                    font: {
+                        size: 16,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        static: true,
+                        function: {
+                            title: function(node) {
+                                return "Drug: " + node.properties.name + 
+                                       "\nMOA: " + (node.properties.moa || "Unknown") +
+                                       "\nPhase: " + (node.properties.phase || "Unknown");
+                            }
+                        }
+                    }
+                },
+                Target: {
+                    label: "name",
+                    size: 25,
+                    color: "#2ecc71",
+                    font: {
+                        size: 14,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(node) {
+                                return "Target: " + node.properties.name;
+                            }
+                        }
+                    }
+                },
+                Pathway: {
+                    label: "name",
+                    size: 20,
+                    color: "#f39c12",
+                    font: {
+                        size: 12,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(node) {
+                                return "Pathway: " + node.properties.name;
+                            }
+                        }
+                    }
+                },
+                Metabolite: {
+                    label: "name",
+                    size: 20,
+                    color: "#e74c3c",
+                    font: {
+                        size: 12,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(node) {
+                                return "Metabolite: " + node.properties.name;
+                            }
+                        }
+                    }
+                },
+                Gene: {
+                    label: "symbol",
+                    size: 20,
+                    color: "#9b59b6",
+                    font: {
+                        size: 12,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(node) {
+                                return "Gene: " + (node.properties.symbol || node.properties.name);
+                            }
+                        }
+                    }
+                },
+                CellularProcess: {
+                    label: "name",
+                    size: 18,
+                    color: "#e67e22",
+                    font: {
+                        size: 11,
+                        color: "white"
+                    },
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(node) {
+                                return "Process: " + node.properties.name;
+                            }
+                        }
+                    }
+                },
+                Protein: {
+                    label: "name",
+                    size: 20,
+                    color: "#1abc9c",
+                    font: {
+                        size: 12,
+                        color: "white"
+                    }
+                }
+            },
+            relationships: {
+                TARGETS: {
+                    thickness: 3,
+                    color: "#555",
+                    label: false,
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(edge) {
+                                return "TARGETS";
+                            }
+                        }
+                    }
+                },
+                AFFECTS_DOWNSTREAM: {
+                    thickness: "confidence",
+                    color: {
+                        inherit: false
+                    },
+                    label: "effect_type",
+                    [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+                        function: {
+                            title: function(edge) {
+                                var conf = edge.properties.confidence || 0;
+                                var effect = edge.properties.effect_type || "affects";
+                                var reasoning = edge.properties.reasoning || "No reasoning provided";
+                                return effect.toUpperCase() + 
+                                       "\nConfidence: " + (conf * 100).toFixed(0) + "%" +
+                                       "\nDepth: " + (edge.properties.depth || 1) + "-hop" +
+                                       "\n" + reasoning.substring(0, 100);
+                            },
+                            color: function(edge) {
+                                var conf = edge.properties.confidence || 0.5;
+                                if (conf >= 0.8) return "#28a745";      // Green - high confidence
+                                else if (conf >= 0.6) return "#ffc107";  // Yellow - medium
+                                else return "#dc3545";                   // Red - low
+                            }
+                        }
+                    }
+                }
+            },
+            initial_cypher: `
+            MATCH drugPath=(d:Drug {name: 'aspirin'})-[:TARGETS]->(t:Target)
+        
+            OPTIONAL MATCH cascadePath=(t)-[:AFFECTS_DOWNSTREAM*1..2]->(e)
+            WHERE ALL(r IN relationships(cascadePath) WHERE r.confidence >= 0.6)
+            RETURN drugPath, cascadePath
+            `,
+            console_debug: false
+        };
+
+        // Initialize NeoVis
+        var viz;
+        
+        function initViz() {
+            console.log("Initializing NeoVis...");
+            viz = new NeoVis.default(config);
+            
+            // Event handlers
+            viz.registerOnEvent("completed", function(e) {
+                console.log("Network rendering completed");
+                document.getElementById('node-info').style.display = 'none';
+            });
+            
+            viz.registerOnEvent("clickNode", function(e) {
+                console.log("Node clicked:", e);
+                showNodeInfo(e);
+                
+                // Send message to Streamlit parent
+                if (window.parent) {
+                    window.parent.postMessage({
+                        type: 'neovis-node-click',
+                        node: {
+                            id: e.nodeId,
+                            label: e.node.label,
+                            labels: e.node.labels,
+                            properties: e.node.properties
+                        }
+                    }, '*');
+                }
+            });
+            
+            viz.registerOnEvent("clickEdge", function(e) {
+                console.log("Edge clicked:", e);
+                showEdgeInfo(e);
+            });
+            
+            // Render the network
+            viz.render();
+        }
+        
+        function showNodeInfo(event) {
+            var node = event.node;
+            var infoDiv = document.getElementById('node-info');
+            var titleDiv = document.getElementById('node-title');
+            var detailsDiv = document.getElementById('node-details');
+            
+            var labels = node.labels || [];
+            var props = node.properties || {};
+            
+            titleDiv.innerHTML = labels[0] + ": " + (props.name || props.symbol || "Unknown");
+            
+            var details = "<table style='width:100%'>";
+            for (var key in props) {
+                if (props.hasOwnProperty(key)) {
+                    var value = props[key];
+                    if (typeof value === 'string' && value.length > 100) {
+                        value = value.substring(0, 100) + "...";
+                    }
+                    details += "<tr><td style='padding:5px;font-weight:bold;'>" + key + 
+                              ":</td><td style='padding:5px;'>" + value + "</td></tr>";
+                }
+            }
+            details += "</table>";
+            
+            detailsDiv.innerHTML = details;
+            infoDiv.style.display = 'block';
+        }
+        
+        function showEdgeInfo(event) {
+            var edge = event.edge;
+            var infoDiv = document.getElementById('node-info');
+            var titleDiv = document.getElementById('node-title');
+            var detailsDiv = document.getElementById('node-details');
+            
+            var type = edge.type || "Unknown";
+            var props = edge.properties || {};
+            
+            titleDiv.innerHTML = "Relationship: " + type;
+            
+            var details = "<table style='width:100%'>";
+            
+            if (props.effect_type) {
+                details += "<tr><td style='padding:5px;font-weight:bold;'>Effect:</td><td style='padding:5px;'>" + 
+                          props.effect_type + "</td></tr>";
+            }
+            
+            if (props.confidence) {
+                var conf = (props.confidence * 100).toFixed(0);
+                var confClass = props.confidence >= 0.8 ? 'confidence-high' : 
+                               props.confidence >= 0.6 ? 'confidence-med' : 'confidence-low';
+                details += "<tr><td style='padding:5px;font-weight:bold;'>Confidence:</td><td style='padding:5px;' class='" + 
+                          confClass + "'>" + conf + "%</td></tr>";
+            }
+            
+            if (props.depth) {
+                details += "<tr><td style='padding:5px;font-weight:bold;'>Depth:</td><td style='padding:5px;'>" + 
+                          props.depth + "-hop</td></tr>";
+            }
+            
+            if (props.reasoning) {
+                details += "<tr><td style='padding:5px;font-weight:bold;vertical-align:top;'>Reasoning:</td><td style='padding:5px;'>" + 
+                          props.reasoning + "</td></tr>";
+            }
+            
+            details += "</table>";
+            
+            detailsDiv.innerHTML = details;
+            infoDiv.style.display = 'block';
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', function() {
+            initViz();
+        });
+        
+        // Expose functions globally
+        window.viz = viz;
+        window.reloadViz = function() {
+            if (viz) {
+                viz.reload();
+            }
+        };
+        window.stabilizeViz = function() {
+            if (viz) {
+                viz.stabilize();
+            }
+        };
+    </script>
+</head>
+<body>
+    <div id="viz_01cbcd0f"></div>
+    <div id="node-info" class="node-info" style="display:none;">
+        <h3 id="node-title"></h3>
+        <div id="node-details"></div>
+    </div>
+</body>
+</html>
+        
