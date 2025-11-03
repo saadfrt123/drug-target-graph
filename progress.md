@@ -941,6 +941,10 @@ LIMIT $limit
   - Identified gap: Backend queries classification fields but has NO AI integration
   - Designed seamless integration: Auto-classify missing data, graceful fallbacks
   - Provided complete code examples for NestJS service, controller, and config
+  - **Detailed implementation guide with 8 specific changes required**
+  - 5 functional requirements with request/response examples
+  - 4 critical implementation notes (health checks, rate limiting, validation, background processing)
+  - Code verification checklist and testing requirements
   - Zero breaking changes - all existing endpoints work as before
   - Full architecture diagram and implementation checklist
 - ✅ JSON output for automated test reporting
