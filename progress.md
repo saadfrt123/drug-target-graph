@@ -936,6 +936,13 @@ LIMIT $limit
   - No placeholder code - ready to deploy!
 - ✅ `api_endpoints/EC2_DEPLOYMENT_GUIDE.md` - Updated to reference complete implementation
 - ✅ `api_endpoints/README.md` - Quick start guide and navigation for all API documentation
+- ✅ `api_endpoints/BACKEND_REVIEW_AND_INTEGRATION_PLAN.md` - **Complete backend code review** and integration plan
+  - Analyzed NestJS backend (`trial-match-api`) with 20+ endpoints
+  - Identified gap: Backend queries classification fields but has NO AI integration
+  - Designed seamless integration: Auto-classify missing data, graceful fallbacks
+  - Provided complete code examples for NestJS service, controller, and config
+  - Zero breaking changes - all existing endpoints work as before
+  - Full architecture diagram and implementation checklist
 - ✅ JSON output for automated test reporting
 
 **Test Coverage:**
