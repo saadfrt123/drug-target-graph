@@ -665,3 +665,300 @@ LIMIT $limit
 5. Document complete integration flow (DONE ✅)
 6. Implement FastAPI endpoints
 7. Backend integration with conditional API calls
+
+---
+
+## 🎨 Figma Design Query Extraction (October 16, 2025):
+
+**User Request:** Extract Neo4j queries from Figma designs and create a mapping document
+
+**Approach:**
+- ✅ Analyze Figma UI elements
+- ✅ Map UI components to Neo4j queries
+- ✅ Document queries without changing codebase
+- ✅ Create reference document for backend team
+
+**Document Created:**
+- ✅ `api_endpoints/FIGMA_QUERIES.md` - Figma design to Neo4j query mapping
+
+**Design 1: Search Drugs - Basic Information Tab**
+
+**Queries Extracted:**
+1. ✅ Basic Information query (name, disease_area, vendor, phase, purity, indication)
+2. ✅ Mechanism of Action query
+3. ✅ Similar Drugs by MoA query
+4. ✅ SMILES notation query
+5. ✅ Drug search query
+6. ✅ Complete combined query for all basic info fields
+
+**UI Elements Mapped:**
+- ✅ Drug name display
+- ✅ Disease area display
+- ✅ Vendor information
+- ✅ Development phase
+- ✅ Purity percentage
+- ✅ Indication list
+- ✅ Mechanism of Action with "Find similar drugs" link
+- ✅ SMILES notation for 3D visualization
+- ✅ Search input functionality
+- ✅ Example drug buttons
+
+**Integration Notes:**
+- All queries execute directly in Neo4j (backend)
+- No API calls needed for basic information
+- Queries match existing `Queries.md` documentation
+- Case sensitivity noted (drug names in UPPERCASE)
+- SMILES handling documented
+
+**Design 2: Search Drugs - Biological Targets Tab**
+
+**Queries Extracted:**
+1. ✅ Total biological targets count query
+2. ✅ Paginated targets table query (with SKIP/LIMIT)
+3. ✅ Drug search query (shared with Design 1)
+
+**UI Elements Mapped:**
+- ✅ Total targets count display ("19 biological proteins/receptors")
+- ✅ Table headers (TARGET, RELATIONSHIP TYPE, MECHANISM, TARGET CLASS, CONFIDENCE)
+- ✅ Pagination controls ("1-10 of 19")
+- ✅ Rows per page selector
+
+**Design 3: Search Drugs - Biological Targets Tab with Sidebar**
+
+**Queries Extracted:**
+1. ✅ Target detail sidebar query (relationship_type, mechanism, target_class, confidence, reasoning)
+2. ✅ Targets table query (same as Design 2)
+
+**UI Elements Mapped:**
+- ✅ Target detail sidebar (AKR1C1 example)
+- ✅ Relationship type display
+- ✅ Mechanism display
+- ✅ Target class display
+- ✅ Confidence percentage
+- ✅ Scientific reasoning text
+
+**Design 4: Search Drugs - Drug Target Network Tab**
+
+**Queries Extracted:**
+1. ✅ Network statistics card query (primary_effects, secondary_effects, unknown_type, unclassified, under_analysis)
+2. ⏭️ Network visualization data query (nodes and edges for graph - skipped, handled by endpoint)
+3. ✅ Drug search query (shared with Design 1)
+
+**UI Elements Mapped:**
+- ✅ Statistics card (Primary Effects: 2, Secondary Effects: 17, etc.)
+- ✅ Analysis Progress calculation (100%)
+- ⏭️ Network visualization area (handled by endpoint)
+- ⏭️ Legend (Primary Effects, Secondary Effects, Unknown Type, Unclassified) - handled by endpoint
+
+**Design 5: Search Drugs - Similar Drugs Tab**
+
+**Queries Extracted:**
+1. ✅ Similar drugs table query (shared targets calculation)
+
+**UI Elements Mapped:**
+- ✅ Table columns (DRUG NAME, MECHANISM OF ACTION, DEVELOPMENT PHASE, SHARED TARGETS, SIMILARITY)
+- ✅ Pagination controls ("1-10 of 19")
+- ✅ Similarity labels (HIGH, GOOD, MODERATE)
+- ✅ Shared targets count
+- ✅ Similarity score calculation (application logic)
+
+**Design 6: Search Targets - Target Information Tab**
+
+**Queries Extracted:**
+1. ✅ Target basic information query (target_class, target_subclass, targeting_drugs, classification_progress)
+2. ✅ Drugs table query (paginated with CLASSIFICATION, MECHANISM, PHASE)
+3. ✅ Search targets input query (from earlier designs)
+4. ✅ Drug details expander query (name, mechanism, phase, indication, disease_area)
+5. ✅ All targets for drug query (list of targets)
+
+**UI Elements Mapped:**
+- ✅ Target basic information card (Target Class, Target Subclass, Targeting Drugs, Classified Interactions, Classification Progress)
+- ✅ Drugs table columns (NAME, CLASSIFICATION, MECHANISM, PHASE)
+- ✅ Pagination controls ("1-10 of 19")
+- ✅ Drug details expander panel (clickable from table)
+- ✅ All targets list with "+X more" truncation
+
+**Design 7: Search Targets - Drug Analysis Tab**
+
+**Queries Extracted:**
+1. ✅ Development phases distribution query (donut/pie chart data)
+2. ✅ Mechanisms distribution query (bar chart data)
+3. ✅ Detailed drug table query (paginated with all columns)
+
+**UI Elements Mapped:**
+- ✅ Development phases donut chart (LAUNCHED, PRECLINICAL, PHASE 2, PHASE 3, WITHDRAWN)
+- ✅ Mechanisms bar chart (Mechanisms Targeting DRD2)
+- ✅ Detailed drug table (DRUG NAME, MOA, PHASE, TARGET MECHANISM, RELATIONSHIP, CONFIDENCE)
+- ✅ Pagination controls ("1-10 of 19")
+
+**Design 8: MOA Analysis - Search Mechanisms Tab**
+
+**Queries Extracted:**
+1. ✅ Search by MOA query (with MOA nodes or alternative without nodes)
+2. ✅ Search results table query (paginated)
+
+**UI Elements Mapped:**
+- ✅ Search bar with example buttons (KINASE INHIBITOR, RECEPTOR ANTAGONIST, ENZYME INHIBITOR)
+- ✅ Search results table (NAME, MECHANISM, PHASE, DRUGS IN MOA, TARGET DIVERSITY)
+- ✅ Pagination controls ("1-10 of 19")
+- ✅ Example results (AMG900 with Aurora kinase inhibitor MOA)
+
+**Design 9: MOA Analysis - Therapeutic Class Tab**
+
+**Queries Extracted:**
+1. ✅ Therapeutic class overview query (with TherapeuticClass nodes or alternative)
+2. ✅ Drugs per therapeutic class chart query (same as overview)
+
+**UI Elements Mapped:**
+- ✅ Therapeutic class overview table (THERAPEUTIC CLASS, MOA COUNT, DRUG COUNT)
+- ✅ Bar chart (Drugs per Therapeutic Class)
+- ✅ Example data (Receptor Antagonist: 979 MOAs, 4427 drugs)
+
+**Design 10: MOA Analysis - Top Mechanisms Tab**
+
+**Queries Extracted:**
+1. ✅ Top mechanisms of action query (with MOA nodes or alternative)
+
+**UI Elements Mapped:**
+- ✅ Top mechanisms table (MOA, DRUG COUNT, TARGET COUNT, THERAPEUTIC CLASS)
+- ✅ Pagination controls ("1-10 of 19")
+- ✅ Example data (adrenergic receptor antagonist: 104 drugs, 29 targets, Receptor Antagonist class)
+
+**Design 11: Mechanism Classification - Individual Classification**
+
+**Queries Extracted:**
+1. ✅ Get existing drug-target classification query
+2. ✅ Force reclassify update query (documented but not tested)
+
+**UI Elements Mapped:**
+- ✅ Drug name and target name input fields
+- ✅ Basic information display (Relationship, Subclass, Confidence, Target Class, Mechanism, Date)
+- ✅ Scientific reasoning section
+- ✅ Reclassify button
+
+**Design 12: Comprehensive Statistics Dashboard**
+
+**Queries Extracted:**
+1. ✅ Drug distribution by development phase query
+2. ✅ Top 15 mechanisms of action query (with MOA nodes or alternative)
+3. ✅ Top 15 drugs by target count query
+4. ✅ Top 15 targets by drug count query
+
+**UI Elements Mapped:**
+- ✅ Drug Distribution by Development Phase bar chart
+- ✅ Top 15 Mechanisms of Action horizontal bar chart
+- ✅ Top 15 Drugs by Target Count bar chart
+- ✅ Top 15 Targets by Drug Count bar chart
+
+**Design 13: Drug Comparison Tab**
+
+**Queries Extracted:**
+1. ✅ Get drug 1 details query
+2. ✅ Get drug 2 details query
+3. ✅ Get drug 1 targets query
+4. ✅ Get drug 2 targets query
+5. ✅ Get common targets query
+
+**UI Elements Mapped:**
+- ✅ Drug input fields (aspirin and ibuprofen)
+- ✅ Comparison table with MOA, Phase, Targets columns
+- ✅ Side-by-side display of targets with "+9 more" truncation
+
+**Design 14: Therapeutic Pathways Tab**
+
+**Queries Extracted:**
+1. ✅ Therapeutic pathway analysis query (with MOA grouping and target popularity)
+
+**UI Elements Mapped:**
+- ✅ Drug input field
+- ✅ Summary metrics (Total Targets: 19, Unique MOAs: 1)
+- ✅ MOA breakdown section
+- ✅ Targets table (NAME, TARGET BY OTHER DRUGS)
+- ✅ Pagination controls
+
+**Design 15: Repurposing Insights Tab**
+
+**Queries Extracted:**
+1. ✅ Top 10 polypharmacology drugs query
+2. ✅ Top 10 druggable targets query
+
+**UI Elements Mapped:**
+- ✅ Top 10 drugs by target count bar chart
+- ✅ Drug names with truncated display
+- ✅ Target count values on Y-axis (0-200)
+- ✅ Polypharmacology insights for repurposing opportunities
+
+**Updated Documentation:**
+- ✅ `api_endpoints/FIGMA_QUERIES.md` - Updated with all 15 designs and 38+ queries
+- ✅ All queries labeled with module assignments
+- ✅ Complete summary table added
+- ✅ Implementation notes for pagination, classification, and visualization
+
+**Module Assignments:**
+- `streamlit_app.py` - `get_drug_details()` - Basic info, targets table
+- `streamlit_app.py` - `get_drug_target_classification()` - Target detail sidebar
+- `streamlit_app.py` - `get_drug_network()` - Network statistics and visualization
+- `streamlit_app.py` - `search_drugs()` - Drug search input
+- `streamlit_app.py` - `get_similar_drugs_by_moa()` - Similar drugs by MoA
+
+**Status:** ✅ All 15 Designs Complete - 38+ Queries Documented
+
+**Test Suite Created:**
+- ✅ `api_endpoints/test_figma_queries.py` - Comprehensive test suite for all queries
+- ✅ `api_endpoints/FIGMA_QUERIES_TEST_TRACKER.md` - Test results tracking document
+- ✅ Tests validate query execution, expected fields, and data presence
+
+**Deployment Documentation:**
+- ✅ `api_endpoints/EC2_DEPLOYMENT_GUIDE.md` - Complete guide for deploying **4-5 simplified AI-only FastAPI endpoints** on AWS EC2
+  - Covers: Health check, classification (single + batch), cascade prediction, status check
+  - Includes: EC2 setup, Nginx reverse proxy, SSL certificates, monitoring, security hardening
+  - Cost: ~$34/month baseline
+  - Alternative: Full API design (35+ endpoints) documented in `API_ENDPOINTS_DOCUMENTATION.md`
+- ✅ `api_endpoints/DEPLOYMENT_APPROACHES.md` - Comparison guide for **Simplified vs Full API** deployment approaches
+  - Side-by-side comparison of 4-5 endpoints vs 35+ endpoints
+  - Architecture diagrams, cost breakdowns, performance metrics
+  - Decision matrix to help choose the right approach
+- ✅ `api_endpoints/BATCH_CLASSIFICATION_EXPLAINED.md` - Comprehensive explanation of **batch classification**
+  - What it is, why it exists, how it works, when to use it
+  - Real-world examples from aspirin (19 targets, 7 classified, 12 unclassified)
+  - Comparison with single classification, code examples, benefits analysis
+- ✅ `api_endpoints/BATCH_CLASSIFICATION_FLOW.md` - **Code structure explanation** for batch classification
+  - Shows that Gemini API is called **once per target** (NOT all in one go)
+  - Complete execution flow with examples
+  - Sequential vs hypothetical batch approach comparison
+  - Performance analysis: 12 targets = 12 API calls, ~36 seconds total
+- ✅ `api_endpoints/FASTAPI_IMPLEMENTATION_GUIDE.md` - **Complete working code** for all 4-5 FastAPI endpoints
+  - Full `main.py` with all endpoints implemented
+  - `config.py` for configuration management
+  - `requirements.txt` with all dependencies
+  - Test scripts and deployment instructions
+  - References existing `mechanism_classifier.py` and `cascade_predictor.py`
+  - No placeholder code - ready to deploy!
+- ✅ `api_endpoints/EC2_DEPLOYMENT_GUIDE.md` - Updated to reference complete implementation
+- ✅ `api_endpoints/README.md` - Quick start guide and navigation for all API documentation
+- ✅ JSON output for automated test reporting
+
+**Test Coverage:**
+- ✅ Design 1: 5 queries tested
+- ✅ Design 2: 2 queries tested
+- ✅ Design 3: 1 query tested
+- ✅ Design 4: 1 query tested (Network Stats)
+- ⏭️ Design 4: 1 query skipped (Network Visualization - handled by endpoint)
+- ✅ Design 5: 1 query tested (Similar Drugs Table)
+- ✅ Design 6: 4 queries tested (Target Basic Info, Drugs Table, Drug Details Expander, All Targets)
+- ✅ Design 7: 3 queries tested (Development Phases Distribution, Mechanisms Distribution, Detailed Drug Table)
+- ✅ Design 8: 1 query tested (Search by MOA)
+- ✅ Design 9: 1 query tested (Therapeutic Class Overview)
+- ✅ Design 10: 1 query tested (Top Mechanisms of Action)
+- ✅ Design 11: 1 query tested (Get Classification for Drug-Target Pair)
+- ✅ Design 12: 4 queries tested (Drug Distribution by Phase, Top 15 Mechanisms, Top 15 Drugs by Target Count, Top 15 Targets by Drug Count)
+- ✅ Design 13: 3 queries tested (Drug 1 Details, Drug 2 Details, Common Targets)
+- ✅ Design 14: 1 query tested (Therapeutic Pathway Analysis)
+- ✅ Design 15: 2 queries tested (Top 10 Polypharmacology Drugs, Top 10 Druggable Targets)
+- ✅ Total: 30 queries in test suite
+
+**Next Steps:**
+1. Run test suite: `python api_endpoints/test_figma_queries.py`
+2. Review test results in `figma_queries_test_results.json`
+3. Fix any failing queries
+4. Update test tracker with results

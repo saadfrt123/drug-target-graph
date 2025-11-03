@@ -1,0 +1,508 @@
+{
+  "test_date": "2025-10-30T18:28:02.715331",
+  "test_drug": "ASPIRIN",
+  "test_target": "PTGS1",
+  "total_tests": 31,
+  "passed": 31,
+  "failed": 0,
+  "results": [
+    {
+      "query_name": "Design 1 - Basic Information",
+      "description": "Get basic drug information",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})\n            RETURN d.name as name,\n                   d.disease_area as disease_area,\n                   d.vendor as vendor,\n                   d.phase as development_phase,\n                   d.purity as purity,\n                   d.indication as indication\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.067294",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 1 - Mechanism of Action",
+      "description": "Get drug MoA",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})\n            RETURN d.moa as mechanism_of_action\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.190707",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 1 - Similar Drugs by MoA",
+      "description": "Find similar drugs by MoA",
+      "query": "\n            MATCH (current:Drug {name: $drug_name})\n            MATCH (d:Drug)\n            WHERE d.moa = current.moa \n              AND d.name <> current.name\n              AND d.moa IS NOT NULL\n            RETURN d.name as drug_name,\n                   d.moa as moa,\n                   d.phase as phase\n            ORDER BY d.name\n            LIMIT $limit\n            ",
+      "params": {
+        "drug_name": "ASPIRIN",
+        "limit": 20
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.318273",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 1 - SMILES Notation",
+      "description": "Get SMILES notation",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})\n            RETURN d.smiles as smiles_notation\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.452951",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 1 - Drug Search",
+      "description": "Search drugs by name",
+      "query": "\n            MATCH (d:Drug)\n            WHERE toLower(d.name) CONTAINS toLower($search_term)\n            RETURN d.name as drug_name,\n                   d.moa as moa,\n                   d.phase as phase\n            ORDER BY d.name\n            LIMIT $limit\n            ",
+      "params": {
+        "search_term": "aspirin",
+        "limit": 20
+      },
+      "success": true,
+      "row_count": 1,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.606990",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 2 - Total Targets Count",
+      "description": "Get total number of targets",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)\n            RETURN count(DISTINCT t) as total_targets\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 1,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.753998",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 2 - Targets Table (Paginated)",
+      "description": "Get paginated targets table",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target)\n            RETURN t.name as target,\n                   r.relationship_type as relationship_type,\n                   r.mechanism as mechanism,\n                   r.target_class as target_class,\n                   r.confidence as confidence\n            ORDER BY t.name\n            SKIP $skip\n            LIMIT $limit\n            ",
+      "params": {
+        "drug_name": "ASPIRIN",
+        "skip": 0,
+        "limit": 10
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:57.920915",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 3 - Target Detail Sidebar",
+      "description": "Get target detail information",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target {name: $target_name})\n            RETURN r.relationship_type as relationship_type,\n                   r.mechanism as mechanism,\n                   r.target_class as target_class,\n                   r.target_subclass as target_subclass,\n                   r.confidence as confidence,\n                   r.reasoning as scientific_reasoning,\n                   r.classification_source as source,\n                   r.classification_timestamp as timestamp\n            ",
+      "params": {
+        "drug_name": "ASPIRIN",
+        "target_name": "PTGS1"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.090942",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 4 - Network Statistics",
+      "description": "Get network statistics",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target)\n            RETURN \n                count(CASE WHEN r.relationship_type = 'Primary/On-Target' THEN 1 END) as primary_effects,\n                count(CASE WHEN r.relationship_type = 'Secondary/Off-Target' THEN 1 END) as secondary_effects,\n                count(CASE WHEN r.relationship_type = 'Unknown' OR r.relationship_type IS NULL THEN 1 END) as unknown_type,\n                count(CASE WHEN r.classified = false OR r.classified IS NULL THEN 1 END) as unclassified,\n                count(CASE WHEN r.classified IS NULL THEN 1 END) as under_analysis,\n                count(t) as total_targets\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 1,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.238606",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 5 - Similar Drugs Table",
+      "description": "Get similar drugs based on shared targets",
+      "query": "\n            MATCH (d1:Drug {name: $drug_name})-[:TARGETS]->(t:Target)<-[:TARGETS]-(d2:Drug)\n            WHERE d2.name <> $drug_name\n            WITH d2, count(t) as common_targets\n            ORDER BY common_targets DESC\n            LIMIT $limit\n            RETURN d2.name as drug, \n                   d2.moa as mechanism_of_action, \n                   d2.phase as development_phase, \n                   common_targets as shared_targets\n            ",
+      "params": {
+        "drug_name": "ASPIRIN",
+        "limit": 19
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.374863",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 6 - Target Basic Information",
+      "description": "Get target-level basic information",
+      "query": "\n            MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)\n            WITH \n              count(r) as total_interactions,\n              count(CASE WHEN r.classified = true THEN 1 END) as classified_interactions,\n              head([x IN collect(r.target_class) WHERE x IS NOT NULL]) as target_class,\n              head([x IN collect(r.target_subclass) WHERE x IS NOT NULL]) as target_subclass,\n              count(DISTINCT d) as targeting_drugs\n            RETURN \n              target_class,\n              target_subclass,\n              targeting_drugs,\n              total_interactions,\n              classified_interactions,\n              CASE WHEN total_interactions = 0 THEN 0 \n                   ELSE round((toFloat(classified_interactions) / toFloat(total_interactions)) * 100) END as classification_progress\n            ",
+      "params": {
+        "target_name": "PTGS1"
+      },
+      "success": true,
+      "row_count": 1,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.569439",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 6 - Drugs Table (Paginated)",
+      "description": "Get paginated drugs targeting the target",
+      "query": "\n            MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)\n            RETURN \n              d.name as drug_name,\n              CASE WHEN r.classified = true THEN 'Classified' ELSE 'Unclassified' END as classification,\n              r.mechanism as mechanism,\n              d.phase as phase\n            ORDER BY d.name\n            SKIP $skip\n            LIMIT $limit\n            ",
+      "params": {
+        "target_name": "PTGS1",
+        "skip": 0,
+        "limit": 10
+      },
+      "success": true,
+      "row_count": 10,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.730884",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 6 - Drug Details Expander",
+      "description": "Get drug details for expander panel",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})\n            RETURN d.name as name,\n                   d.moa as mechanism,\n                   d.phase as phase,\n                   d.indication as indication,\n                   d.disease_area as disease_area\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:58.876101",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 6 - All Targets for Drug",
+      "description": "Get all targets for a drug",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)\n            RETURN t.name as target\n            ORDER BY t.name\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:59.030005",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 7 - Development Phases Distribution",
+      "description": "Get drug phase distribution for target",
+      "query": "\n            MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)\n            WHERE d.phase IS NOT NULL AND d.phase <> ''\n            RETURN d.phase as phase, count(d) as drug_count\n            ORDER BY drug_count DESC\n            ",
+      "params": {
+        "target_name": "PTGS1"
+      },
+      "success": true,
+      "row_count": 7,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:59.200569",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 7 - Mechanisms Distribution",
+      "description": "Get mechanism distribution for target",
+      "query": "\n            MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)\n            WHERE r.mechanism IS NOT NULL AND r.mechanism <> ''\n            RETURN r.mechanism as mechanism, count(d) as drug_count\n            ORDER BY drug_count DESC\n            LIMIT $limit\n            ",
+      "params": {
+        "target_name": "PTGS1",
+        "limit": 20
+      },
+      "success": true,
+      "row_count": 3,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:59.385433",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 7 - Detailed Drug Table (Paginated)",
+      "description": "Get detailed drug table for target analysis",
+      "query": "\n            MATCH (t:Target {name: $target_name})<-[r:TARGETS]-(d:Drug)\n            RETURN d.name as drug_name,\n                   d.moa as moa,\n                   d.phase as phase,\n                   r.mechanism as target_mechanism,\n                   r.relationship_type as relationship,\n                   r.confidence as confidence\n            ORDER BY d.name\n            SKIP $skip\n            LIMIT $limit\n            ",
+      "params": {
+        "target_name": "PTGS1",
+        "skip": 0,
+        "limit": 10
+      },
+      "success": true,
+      "row_count": 10,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:27:59.545544",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 8 - Search by MOA",
+      "description": "Search drugs by mechanism of action",
+      "query": "\n            MATCH (d:Drug)\n            WHERE toLower(d.moa) CONTAINS toLower($moa_search)\n            WITH d\n            MATCH (d)-[:TARGETS]->(t:Target)\n            OPTIONAL MATCH (d)-[:TARGETS]->(t2:Target)<-[:TARGETS]-(other:Drug)\n            WHERE other.moa = d.moa\n            WITH d, count(DISTINCT t) as target_diversity, count(DISTINCT other) as drug_count\n            RETURN d.name as drug,\n                   d.moa as moa,\n                   d.phase as phase,\n                   drug_count as drugs_in_moa,\n                   target_diversity as target_diversity\n            ORDER BY drug_count DESC, d.name\n            LIMIT $limit\n            ",
+      "params": {
+        "moa_search": "inhibitor",
+        "limit": 25
+      },
+      "success": true,
+      "row_count": 25,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:00.251428",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 9 - Therapeutic Class Overview",
+      "description": "Get therapeutic class overview with MOA and drug counts",
+      "query": "\n            MATCH (d:Drug)\n            WHERE d.moa IS NOT NULL\n            WITH d,\n                 CASE \n                   WHEN toLower(d.moa) CONTAINS 'inhibitor' THEN 'Inhibitor'\n                   WHEN toLower(d.moa) CONTAINS 'agonist' THEN 'Agonist'\n                   WHEN toLower(d.moa) CONTAINS 'antagonist' THEN 'Antagonist'\n                   WHEN toLower(d.moa) CONTAINS 'blocker' THEN 'Blocker'\n                   ELSE 'Other'\n                 END as therapeutic_class\n            WITH therapeutic_class as class_name,\n                 collect(DISTINCT d.moa) as unique_moas,\n                 collect(DISTINCT d.name) as unique_drugs\n            RETURN class_name,\n                   size(unique_moas) as moa_count,\n                   size(unique_drugs) as drug_count\n            ORDER BY drug_count DESC\n            LIMIT $limit\n            ",
+      "params": {
+        "limit": 10
+      },
+      "success": true,
+      "row_count": 4,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:00.452239",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 10 - Top Mechanisms of Action",
+      "description": "Get top mechanisms of action with drug and target counts",
+      "query": "\n            MATCH (d:Drug)\n            WHERE d.moa IS NOT NULL AND d.moa <> ''\n            WITH d.moa as moa_name, collect(DISTINCT d.name) as drugs\n            WITH moa_name, size(drugs) as drug_count,\n                 CASE \n                   WHEN toLower(moa_name) CONTAINS 'inhibitor' THEN 'Inhibitor'\n                   WHEN toLower(moa_name) CONTAINS 'agonist' THEN 'Agonist'\n                   WHEN toLower(moa_name) CONTAINS 'antagonist' THEN 'Antagonist'\n                   WHEN toLower(moa_name) CONTAINS 'blocker' THEN 'Blocker'\n                   ELSE 'Other'\n                 END as therapeutic_class\n            OPTIONAL MATCH (d2:Drug {moa: moa_name})-[:TARGETS]->(t:Target)\n            RETURN moa_name as moa,\n                   drug_count,\n                   count(DISTINCT t) as target_count,\n                   therapeutic_class\n            ORDER BY drug_count DESC\n            LIMIT $limit\n            ",
+      "params": {
+        "limit": 20
+      },
+      "success": true,
+      "row_count": 20,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:00.815192",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 11 - Get Classification for Drug-Target Pair",
+      "description": "Get existing classification for a specific drug-target pair",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[r:TARGETS]->(t:Target {name: $target_name})\n            WHERE r.classified = true\n            RETURN r.relationship_type as relationship_type,\n                   r.target_class as target_class,\n                   r.target_subclass as target_subclass,\n                   r.mechanism as mechanism,\n                   r.confidence as confidence,\n                   r.reasoning as reasoning,\n                   r.classification_source as source,\n                   r.classification_timestamp as timestamp\n            ",
+      "params": {
+        "drug_name": "ASPIRIN",
+        "target_name": "PTGS1"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.005826",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 12 - Drug Distribution by Development Phase",
+      "description": "Get drug distribution by development phase",
+      "query": "\n            MATCH (d:Drug)\n            WHERE d.phase IS NOT NULL AND d.phase <> ''\n            RETURN d.phase as phase, count(d) as drug_count\n            ORDER BY drug_count DESC\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 9,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.166844",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 12 - Top 15 Mechanisms of Action",
+      "description": "Get top 15 mechanisms of action by drug count",
+      "query": "\n            MATCH (d:Drug)\n            WHERE d.moa IS NOT NULL AND d.moa <> ''\n            WITH d.moa as moa_name, count(d) as drug_count\n            RETURN moa_name as moa, drug_count\n            ORDER BY drug_count DESC\n            LIMIT 15\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 15,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.327321",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 12 - Top 15 Drugs by Target Count",
+      "description": "Get top 15 drugs by target count",
+      "query": "\n            MATCH (d:Drug)-[:TARGETS]->(t:Target)\n            RETURN d.name as drug, d.moa as moa, d.phase as phase, count(t) as target_count\n            ORDER BY target_count DESC\n            LIMIT 15\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 15,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.514594",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 12 - Top 15 Targets by Drug Count",
+      "description": "Get top 15 targets by drug count",
+      "query": "\n            MATCH (d:Drug)-[:TARGETS]->(t:Target)\n            RETURN t.name as target, count(d) as drug_count\n            ORDER BY drug_count DESC\n            LIMIT 15\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 15,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.677024",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 13 - Get Drug 1 Details",
+      "description": "Get details for first drug in comparison",
+      "query": "\n            MATCH (d:Drug {name: $drug1})\n            RETURN d.name as name, d.moa as moa, d.phase as phase\n            ",
+      "params": {
+        "drug1": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.823007",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 13 - Get Drug 2 Details",
+      "description": "Get details for second drug in comparison",
+      "query": "\n            MATCH (d:Drug {name: $drug2})\n            RETURN d.name as name, d.moa as moa, d.phase as phase\n            ",
+      "params": {
+        "drug2": "ibuprofen"
+      },
+      "success": true,
+      "row_count": 1,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:01.965995",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 13 - Get Common Targets",
+      "description": "Find common targets between two drugs",
+      "query": "\n            MATCH (d1:Drug {name: $drug1})-[:TARGETS]->(t:Target)<-[:TARGETS]-(d2:Drug {name: $drug2})\n            RETURN t.name as target\n            ORDER BY t.name\n            ",
+      "params": {
+        "drug1": "ASPIRIN",
+        "drug2": "ibuprofen"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:02.154503",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 14 - Get Therapeutic Pathway Analysis",
+      "description": "Get therapeutic pathways and mechanisms for a drug with target popularity",
+      "query": "\n            MATCH (d:Drug {name: $drug_name})-[:TARGETS]->(t:Target)\n            OPTIONAL MATCH (t)<-[:TARGETS]-(other:Drug)\n            WHERE other.name <> $drug_name\n            RETURN d.name as drug, d.moa as moa, d.phase as phase,\n                   t.name as target, count(other) as other_drugs\n            ORDER BY other_drugs DESC\n            ",
+      "params": {
+        "drug_name": "ASPIRIN"
+      },
+      "success": true,
+      "row_count": 0,
+      "has_data": false,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:02.334997",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": false
+    },
+    {
+      "query_name": "Design 15 - Top 10 Polypharmacology Drugs",
+      "description": "Get top 10 drugs by target count for repurposing insights",
+      "query": "\n            MATCH (d:Drug)-[:TARGETS]->(t:Target)\n            WITH d, count(t) as target_count\n            WHERE target_count > 3\n            RETURN d.name as drug, d.moa as moa, d.phase as phase, target_count\n            ORDER BY target_count DESC\n            LIMIT 10\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 10,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:02.528091",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    },
+    {
+      "query_name": "Design 15 - Top 10 Druggable Targets",
+      "description": "Get top 10 most druggable targets",
+      "query": "\n            MATCH (d:Drug)-[:TARGETS]->(t:Target)\n            WITH t, count(d) as drug_count\n            WHERE drug_count > 2\n            RETURN t.name as target, drug_count\n            ORDER BY drug_count DESC\n            LIMIT 10\n            ",
+      "params": {},
+      "success": true,
+      "row_count": 10,
+      "has_data": true,
+      "error": null,
+      "timestamp": "2025-10-30T18:28:02.709326",
+      "missing_fields": [],
+      "all_fields_present": true,
+      "meets_min_rows": true
+    }
+  ]
+}
